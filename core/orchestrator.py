@@ -13,6 +13,7 @@ Run it with::
 from __future__ import annotations
 
 import os
+import shutil
 
 from rich.console import Console
 from rich.panel import Panel
@@ -61,12 +62,31 @@ def _preflight_table(cfg: Config) -> Table:
     table.add_column("Status")
     table.add_column("Detail", overflow="fold")
 
+    backend = str(cfg.get("cloud.backend", "cli")).lower()
     has_key = bool(os.environ.get("ANTHROPIC_API_KEY"))
-    table.add_row(
-        "Anthropic API key",
-        _status(has_key),
-        "found in environment" if has_key else "set ANTHROPIC_API_KEY in .env",
-    )
+
+    if backend == "api":
+        table.add_row(
+            "Cloud auth · api",
+            _status(has_key),
+            "ANTHROPIC_API_KEY found" if has_key else "set ANTHROPIC_API_KEY in .env",
+        )
+    else:  # cli / subscription
+        cli_path = shutil.which("claude")
+        table.add_row(
+            "Cloud auth · cli",
+            _status(bool(cli_path)),
+            f"claude CLI found ({cli_path}); run `claude login` with your Pro/Max plan"
+            if cli_path
+            else "install: npm i -g @anthropic-ai/claude-code, then `claude login`",
+        )
+        if has_key:
+            table.add_row(
+                "API key override",
+                Text("● warning", style="bold yellow"),
+                "ANTHROPIC_API_KEY is set — Claude Code will bill the API instead of "
+                "your subscription. Unset it to use your plan.",
+            )
 
     vault = cfg.get("vault.path")
     vault_ok = bool(vault) and os.path.isdir(str(vault))

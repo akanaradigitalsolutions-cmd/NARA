@@ -21,13 +21,25 @@ models:
   # Stronger local model, loaded on demand (Phase 6). ~9B is the ceiling on 16 GB.
   # NOTE: verify the exact Ollama tag for your machine before pulling.
   local_model: "qwen3.5:9b"
-  # Default cloud brain for real reasoning (Phase 2). See the tiering below.
+  # Cloud brain for real reasoning (Phase 2). Under cloud.backend=cli these tiers
+  # are advisory (the CLI uses your Claude Code session's model); under
+  # cloud.backend=api they select the model per request (Phase 6 routing).
   cloud_model: "claude-sonnet-5"
-  # Cost-tiered cloud models (Phase 6 routing): light -> most -> hardest.
-  cloud_model_light: "claude-haiku-4-5"
-  cloud_model_heavy: "claude-opus-4-8"
+  cloud_model_light: "claude-haiku-4-5"   # light tasks
+  cloud_model_heavy: "claude-opus-4-8"    # hardest tasks
   # Local embedding model for vault RAG (Phase 1), served by Ollama.
   embedding_model: "nomic-embed-text"
+
+cloud:
+  # How NARA reaches Claude for cloud reasoning (Phase 2) and dev work (Phase 3):
+  #   cli -> drive the local `claude` CLI / Claude Agent SDK, authenticated with
+  #          your Claude Pro/Max subscription via `claude login`. No API key, and
+  #          usage counts against your plan's quota. Keep ANTHROPIC_API_KEY UNSET
+  #          in this mode, or Claude Code will bill the pay-per-token API instead.
+  #   api -> call the Anthropic API directly with ANTHROPIC_API_KEY (pay-per-token).
+  #          Unlocks per-request Haiku/Sonnet/Opus routing + precise cost tracking
+  #          (the cloud_model_* tiers above and Phase 6 budgeting).
+  backend: cli
 
 vault:
   # Absolute path to your Obsidian vault. CHANGE THIS to your real vault.

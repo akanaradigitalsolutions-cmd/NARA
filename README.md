@@ -64,11 +64,15 @@ nara/
    ```
    On 16 GB, keep one small model resident; don't hold a 14B+ model — it swaps
    to SSD and crawls.
-3. **Claude Code** (needs Node.js), for Phase 3 dev delegation:
+3. **Claude Code** (needs Node.js) — NARA's cloud + dev engine. With a Claude
+   **Pro/Max subscription** you don't need an API key; log in and NARA drives the
+   CLI on your plan:
    ```bash
    npm install -g @anthropic-ai/claude-code
-   claude login            # or set ANTHROPIC_API_KEY
+   claude login            # choose "Claude account" (Pro/Max) — no API key needed
    ```
+   Keep `ANTHROPIC_API_KEY` **unset** to use your subscription; set it only if you
+   switch `cloud.backend` to `api` (pay-per-token, for finer model/cost control).
 
 ## Setup
 
@@ -84,9 +88,9 @@ uv pip install -e .            # base: config + cloud/local clients
 # uv pip install -e ".[voice]"  # Phase 4: wake word / STT / TTS
 # uv pip install -e ".[all,dev]" # everything + test tooling
 
-# 3. Configure secrets and settings
-cp .env.example .env           # then paste your ANTHROPIC_API_KEY
-$EDITOR config/nara.yaml       # set vault.path to your Obsidian vault
+# 3. Configure settings (no API key needed on a Pro/Max subscription)
+$EDITOR config/nara.yaml       # set vault.path; cloud.backend defaults to `cli`
+cp .env.example .env           # only fill ANTHROPIC_API_KEY if cloud.backend=api
 ```
 
 ## Run it (Phase 0)
@@ -98,7 +102,7 @@ nara
 ```
 
 You should see a **`NARA online`** banner, the resolved configuration, and a
-preflight check for your API key and vault path.
+preflight check for your cloud auth (CLI login or API key) and vault path.
 
 ## Configuration
 
@@ -107,6 +111,7 @@ live in `.env` (never committed). Key things to set before Phase 1:
 
 | Key | What it is |
 |-----|------------|
+| `cloud.backend` | `cli` (Pro/Max subscription via Claude Code) or `api` (API key) |
 | `vault.path` | Absolute path to your Obsidian vault |
 | `models.cloud_model` | Default cloud brain (e.g. `claude-sonnet-5`) |
 | `models.voice_model` | Small resident local model (e.g. `qwen3:4b`) |
@@ -138,5 +143,8 @@ The MVP is **Phases 0–2**. Each phase after that is independently valuable.
   + a hard mute are non-negotiable for an always-on assistant.
 - **Sensitive vault folders never leave the machine** — anything under the
   `private_folder` is answered locally only, never sent to the cloud.
-- **Cloud spend is deliberate** (Phase 6): light tasks → Haiku 4.5, most
-  reasoning → Sonnet 5, hardest → Opus 4.8, with a monthly budget cap.
+- **On a Pro/Max subscription** (`cloud.backend: cli`), cloud + Claude Code usage
+  counts against your plan's shared quota (no per-token bill). Note that quota is
+  shared with claude.ai and Claude Desktop.
+- **Cloud spend is deliberate** in `api` mode (Phase 6): light tasks → Haiku 4.5,
+  most reasoning → Sonnet 5, hardest → Opus 4.8, with a monthly budget cap.

@@ -9,6 +9,7 @@ def test_config_loads():
     assert cfg.get("persona.name")
     assert cfg.get("models.cloud_model")
     assert cfg.get("vault.path")
+    assert cfg.get("cloud.backend") in {"cli", "api"}
 
 
 def test_dotted_get_default():

@@ -1,0 +1,76 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# NARA configuration
+# Neural Assistant · Responsive · Autonomous
+#
+# Edit this file to point NARA at your vault, pick models, and tune behaviour.
+# Secrets (API keys) live in `.env`, never here. Paths may use ~ and $ENV_VARS.
+# ─────────────────────────────────────────────────────────────────────────────
+
+persona:
+  name: NARA
+  wake_word: "Hey Nara"
+  # A short description that seeds NARA's system prompt in Phase 2.
+  style: >-
+    A concise, proactive British-butler-style assistant for a solo founder in
+    Bali running Relaxha (spa/wellness), AKA Express Laundry, and hospitality
+    marketing. No filler. Speaks briefly out loud; thinks carefully.
+
+models:
+  # Small model kept resident for voice/intent/quick chat (Phase 4/6).
+  voice_model: "qwen3:4b"
+  # Stronger local model, loaded on demand (Phase 6). ~9B is the ceiling on 16 GB.
+  # NOTE: verify the exact Ollama tag for your machine before pulling.
+  local_model: "qwen3.5:9b"
+  # Default cloud brain for real reasoning (Phase 2). See the tiering below.
+  cloud_model: "claude-sonnet-5"
+  # Cost-tiered cloud models (Phase 6 routing): light -> most -> hardest.
+  cloud_model_light: "claude-haiku-4-5"
+  cloud_model_heavy: "claude-opus-4-8"
+  # Local embedding model for vault RAG (Phase 1), served by Ollama.
+  embedding_model: "nomic-embed-text"
+
+vault:
+  # Absolute path to your Obsidian vault. CHANGE THIS to your real vault.
+  path: "~/Obsidian/NARA-Vault"
+  # Folders NARA owns inside the vault (created on demand in Phase 1).
+  memory_folder: "NARA/Memory"     # facts NARA learns
+  daily_folder: "NARA/Daily"       # daily logs
+  projects_folder: "NARA/Projects" # Relaxha, Laundry, marketing
+  private_folder: "NARA/private"   # never indexed, never sent to the cloud
+
+memory:
+  # Where the local vector index is stored (Phase 1).
+  index_path: "~/.nara/index.lancedb"
+  chunk_size: 500      # ~tokens per chunk
+  chunk_overlap: 50
+  search_k: 6          # chunks retrieved per query
+
+voice:
+  wake_engine: "openwakeword"   # openwakeword | pvporcupine
+  stt_model: "small"            # faster-whisper size: tiny | base | small | medium
+  tts_engine: "macos"           # kokoro | macos | elevenlabs
+  silence_ms: 800               # stop recording after this much silence
+  push_to_talk_hotkey: "cmd+shift+space"
+
+router:
+  # Phase 2 heuristics (upgraded to a cloud-weighted policy in Phase 6).
+  cloud_context_threshold_tokens: 800
+  dev_keywords: [code, repo, build, deploy, debug, refactor, test, commit, PR]
+  cloud_keywords: [analyze, plan, compare, research, synthesize, strategy]
+
+dev:
+  # Phase 3 — map project names to local repo paths for "do my dev work".
+  max_cost_usd: 2.0
+  projects:
+    # name: /path/to/repo
+    relaxha: "~/code/relaxha"
+    laundraos: "~/code/laundraos"
+
+budget:
+  # Phase 6 — cloud spend guardrails.
+  monthly_cloud_usd: 50
+  warn_at_percent: 80
+
+logging:
+  path: "~/.nara/logs"
+  level: "INFO"    # DEBUG | INFO | WARNING | ERROR

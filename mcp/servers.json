@@ -1,0 +1,13 @@
+{
+  "_comment": "Template MCP server config for NARA and Claude Code. Point both at your Obsidian vault so the same connection powers NARA's memory and lets Claude Code read your project notes while it codes. Replace <VAULT_PATH> with your vault's absolute path.",
+  "mcpServers": {
+    "obsidian": {
+      "command": "npx",
+      "args": ["-y", "obsidian-mcp", "<VAULT_PATH>"]
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "<VAULT_PATH>"]
+    }
+  }
+}

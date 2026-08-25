@@ -1,0 +1,35 @@
+# ── Secrets ──────────────────────────────────────────────────────────────────
+.env
+*.key
+*.pem
+
+# ── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# ── NARA runtime data ────────────────────────────────────────────────────────
+.nara/
+*.lancedb/
+logs/
+*.log
+
+# ── Models / large artifacts ─────────────────────────────────────────────────
+models/
+*.gguf
+*.bin
+*.pt
+
+# ── OS / editor ──────────────────────────────────────────────────────────────
+.DS_Store
+.idea/
+.vscode/

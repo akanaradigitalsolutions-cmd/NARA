@@ -9,9 +9,9 @@ chat; **cloud Claude** does the heavy reasoning; **Claude Code** does the actual
 coding in your repos. On a 16 GB machine the cloud is the main brain and the
 local model keeps things fast and private — that split is the whole point.
 
-> **Status: Phase 0 — Foundations.** The project skeleton, config loading, and a
-> runnable entry point are in place. Features arrive phase by phase (see the
-> roadmap below).
+> **Status: Phase 1 — The Brain.** Foundations are in place and NARA can now
+> read, index, and semantically recall your Obsidian vault, plus write notes back
+> (`remember` / `daily_log`). The text agent (Phase 2) is next — see the roadmap.
 
 ---
 
@@ -38,12 +38,12 @@ nara/
 │   ├── config.py           # config + .env loading                (Phase 0 ✓)
 │   ├── orchestrator.py      # the "consciousness" loop             (Phase 0 stub)
 │   ├── router.py           # local vs cloud vs Claude Code        (Phase 2)
-│   ├── memory.py           # vault RAG + short-term context       (Phase 1)
+│   ├── memory.py           # vault RAG: search/remember/daily     (Phase 1 ✓)
 │   └── skills/             # vault, dev, macos, web               (Phase 2/3/7)
 ├── voice/                  # wake.py, stt.py, tts.py              (Phase 4)
 ├── mcp/servers.json        # Obsidian + filesystem MCP template
-├── scripts/index_vault.py  # (re)build the vector index          (Phase 1)
-└── tests/                  # smoke tests
+├── scripts/index_vault.py  # (re)build the vector index          (Phase 1 ✓)
+└── tests/                  # smoke + memory tests
 ```
 
 ---
@@ -119,6 +119,35 @@ live in `.env` (never committed). Key things to set before Phase 1:
 
 Run tests with `pytest`.
 
+## The Brain — memory (Phase 1)
+
+NARA's memory lives in your vault plus a local vector index (LanceDB), embedded
+with Ollama's `nomic-embed-text`. Install the extra and make sure Ollama is
+running with the embedding model pulled:
+
+```bash
+uv pip install -e ".[memory]"
+ollama pull nomic-embed-text
+```
+
+**Build the index**, then query and write memory:
+
+```bash
+python scripts/index_vault.py            # incremental (skips unchanged notes)
+python scripts/index_vault.py --rebuild  # wipe and rebuild
+python scripts/index_vault.py --watch     # keep it live as you edit the vault
+
+python -m core.memory search "Relaxha pricing"                  # semantic recall
+python -m core.memory remember "Villa X owner is Ketut" --tags relaxha
+python -m core.memory daily "Shipped the laundry route change"
+```
+
+NARA owns a few folders inside your vault — `NARA/Memory/` (facts it learns) and
+`NARA/Daily/` (daily logs). Anything under `NARA/private/` is never indexed and
+never leaves the machine, and your own notes are read-only to the indexer: NARA
+only writes inside its own folders. Indexing is idempotent (unchanged notes are
+skipped by mtime) and fully local — no cloud, no API key.
+
 ---
 
 ## Roadmap
@@ -126,7 +155,7 @@ Run tests with `pytest`.
 | Phase | Milestone | You can… |
 |-------|-----------|----------|
 | **0 ✓** | Foundations | Run the skeleton; it prints `NARA online` |
-| **1** | The Brain | Ask about your notes; NARA recalls from the vault |
+| **1 ✓** | The Brain | Index + recall your vault; `remember` / `daily_log` |
 | **2** | Core Agent (text loop) | Hold a memory-grounded conversation in the terminal (MVP) |
 | **3** | Claude Code integration | "Add Stripe webhooks to Relaxha" → it happens |
 | **4** | Voice | Talk to it hands-free ("Hey Nara…") |

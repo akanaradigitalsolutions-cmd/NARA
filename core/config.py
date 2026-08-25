@@ -112,7 +112,7 @@ def load_config(config_path: str | os.PathLike[str] | None = None) -> Config:
     if not isinstance(data, dict):
         # A malformed config file is a value error (bad file contents), not a
         # programmer type error — hence ValueError over TypeError.
-        raise ValueError(  # noqa: TRY004
+        raise ValueError(
             f"Config at {path} must be a YAML mapping, got {type(data).__name__}."
         )
 

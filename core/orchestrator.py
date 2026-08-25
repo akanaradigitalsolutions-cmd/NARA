@@ -107,7 +107,7 @@ def main() -> None:
         console.print(
             Panel(str(exc), title="[red]NARA failed to start[/]", border_style="red")
         )
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
     name = cfg.get("persona.name", "NARA")
     banner = Text(justify="center")

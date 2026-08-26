@@ -41,7 +41,8 @@ cat <<'DONE'
 ✅ NARA is installed. Next steps:
 
    1) Point NARA at your Obsidian vault:
-        open -e config/nara.yaml      # set vault.path: to your real vault
+        python scripts/set_vault.py --list            # find your vault, then:
+        python scripts/set_vault.py "<your vault path>"
 
    2) Activate the environment (do this in each new Terminal tab):
         source .venv/bin/activate

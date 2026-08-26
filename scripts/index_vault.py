@@ -95,7 +95,9 @@ def main(argv: list[str] | None = None) -> int:
     if not mm.vault_path.is_dir():
         print(
             f"Vault path does not exist: {mm.vault_path}\n"
-            "Set `vault.path` in config/nara.yaml to your Obsidian vault.",
+            'Set it with:  python scripts/set_vault.py "/path/to/your/vault"\n'
+            "  (find yours:  python scripts/set_vault.py --list"
+            "  ·  make one:  python scripts/set_vault.py --create ~/NARA-Vault)",
             file=sys.stderr,
         )
         return 1

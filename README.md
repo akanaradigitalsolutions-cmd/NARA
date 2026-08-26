@@ -69,9 +69,11 @@ git checkout claude/nara-project-setup-uk0hl9
 # 4) Set up the environment + brain (venv, install, pull the embedding model)
 bash scripts/setup_mac.sh
 
-# 5) Point NARA at your vault, then build the index and search
-open -e config/nara.yaml            # set vault.path: to your Obsidian vault
+# 5) Activate the env, point NARA at your vault, then build the index and search
 source .venv/bin/activate
+python scripts/set_vault.py --list                    # show your Obsidian vaults
+python scripts/set_vault.py "/Users/you/YourVault"     # ...then set the right one
+#   no vault yet?  python scripts/set_vault.py --create ~/NARA-Vault
 python scripts/index_vault.py
 python -m core.memory search "Relaxha pricing"
 ```

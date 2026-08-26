@@ -49,6 +49,37 @@ def _flatten(system: str, messages: list[Message]) -> str:
     return "\n".join(parts)
 
 
+def _ollama_chat(client, model: str, payload: list[Message]):
+    """Call ollama.chat, disabling reasoning when the client/server supports it.
+
+    ``think=False`` gives a direct answer from reasoning models (qwen3, ...) and
+    is much faster; older clients/servers reject the kwarg, so retry plainly.
+    """
+    try:
+        return client.chat(model=model, messages=payload, think=False)
+    except Exception:  # noqa: BLE001 - unsupported `think`; retry without it
+        return client.chat(model=model, messages=payload)
+
+
+def _extract_chat_text(resp) -> str:
+    """Pull the reply text from an ollama chat response (dict or object).
+
+    Reasoning models may put the answer in ``content`` and the chain-of-thought
+    in ``thinking``; if ``content`` is empty, fall back to ``thinking``.
+    """
+    message = resp.get("message") if isinstance(resp, dict) else getattr(resp, "message", None)
+    if message is None:
+        return ""
+    if isinstance(message, dict):
+        content, thinking = message.get("content"), message.get("thinking")
+    else:
+        content, thinking = getattr(message, "content", None), getattr(message, "thinking", None)
+    text = (content or "").strip()
+    if not text and thinking:
+        text = thinking.strip()
+    return text
+
+
 class OllamaEngine:
     """Local chat via an Ollama model."""
 
@@ -63,15 +94,16 @@ class OllamaEngine:
         client = ollama.Client(host=self.host) if self.host else ollama
         payload = [{"role": "system", "content": system}, *messages]
         try:
-            resp = client.chat(model=self.model, messages=payload)
+            resp = _ollama_chat(client, self.model, payload)
         except Exception as exc:  # ollama raises several connection/response types
             raise EngineError(
                 f"Ollama call failed ({exc}). Is Ollama running and is "
                 f"'{self.model}' pulled? Try: ollama pull {self.model}"
             ) from exc
-        message = resp["message"] if isinstance(resp, dict) else resp.message
-        content = message["content"] if isinstance(message, dict) else message.content
-        return Reply(text=(content or "").strip(), engine=self.name)
+        text = _extract_chat_text(resp)
+        if not text:
+            raise EngineError(f"{self.model} returned an empty response")
+        return Reply(text=text, engine=self.name)
 
 
 class ClaudeCLIEngine:

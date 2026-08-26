@@ -22,6 +22,7 @@ from dotenv import load_dotenv
 # Repo root = the directory that contains this ``core/`` package.
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CONFIG_PATH = REPO_ROOT / "config" / "nara.yaml"
+EXAMPLE_CONFIG_PATH = REPO_ROOT / "config" / "nara.example.yaml"
 
 # Dotted keys whose string values are filesystem paths and should be expanded.
 _PATH_KEYS = (
@@ -99,13 +100,22 @@ def load_config(config_path: str | os.PathLike[str] | None = None) -> Config:
     # Load .env from the repo root if present (a no-op when it's absent).
     load_dotenv(REPO_ROOT / ".env")
 
-    path = Path(config_path or os.environ.get("NARA_CONFIG") or DEFAULT_CONFIG_PATH)
+    # Prefer the user's config/nara.yaml (git-ignored); fall back to the tracked
+    # example so a fresh clone still runs with sensible defaults.
+    if config_path is not None:
+        path = Path(config_path)
+    elif os.environ.get("NARA_CONFIG"):
+        path = Path(os.environ["NARA_CONFIG"])
+    elif DEFAULT_CONFIG_PATH.exists():
+        path = DEFAULT_CONFIG_PATH
+    else:
+        path = EXAMPLE_CONFIG_PATH
     if not path.is_absolute():
         path = (REPO_ROOT / path).resolve()
     if not path.exists():
         raise FileNotFoundError(
-            f"NARA config not found at {path}. Copy config/nara.yaml and adjust it, "
-            "or set NARA_CONFIG to point at your config file."
+            f"NARA config not found at {path}. Create config/nara.yaml from "
+            "config/nara.example.yaml (setup_mac.sh does this), or set NARA_CONFIG."
         )
 
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}

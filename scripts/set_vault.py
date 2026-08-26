@@ -15,7 +15,9 @@ import json
 import sys
 from pathlib import Path
 
-CONFIG = Path(__file__).resolve().parent.parent / "config" / "nara.yaml"
+_CONFIG_DIR = Path(__file__).resolve().parent.parent / "config"
+CONFIG = _CONFIG_DIR / "nara.yaml"
+EXAMPLE = _CONFIG_DIR / "nara.example.yaml"
 OBSIDIAN_JSON = Path.home() / "Library/Application Support/obsidian/obsidian.json"
 
 
@@ -52,6 +54,8 @@ def set_vault(raw_path: str, create: bool) -> int:
         )
         return 1
 
+    if not CONFIG.exists() and EXAMPLE.exists():
+        CONFIG.write_text(EXAMPLE.read_text(encoding="utf-8"), encoding="utf-8")
     lines = CONFIG.read_text(encoding="utf-8").splitlines(keepends=True)
     out: list[str] = []
     in_vault = False

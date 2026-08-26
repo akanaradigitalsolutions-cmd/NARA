@@ -144,8 +144,10 @@ preflight check for your cloud auth (CLI login or API key) and vault path.
 
 ## Configuration
 
-Everything behavioural lives in [`config/nara.yaml`](config/nara.yaml); secrets
-live in `.env` (never committed). Key things to set before Phase 1:
+Everything behavioural lives in `config/nara.yaml` — your own copy, created from
+[`config/nara.example.yaml`](config/nara.example.yaml) on setup and **git-ignored**
+so `git pull` never clobbers it. Secrets live in `.env` (also never committed).
+Key things to set:
 
 | Key | What it is |
 |-----|------------|

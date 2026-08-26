@@ -3,6 +3,9 @@
 *.key
 *.pem
 
+# ── User config (created from config/nara.example.yaml; set by set_vault.py) ──
+config/nara.yaml
+
 # ── Python ───────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]

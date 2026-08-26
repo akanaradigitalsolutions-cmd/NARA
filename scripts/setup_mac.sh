@@ -28,6 +28,11 @@ if [ ! -f .env ]; then
   echo "→ Created .env from template (no API key needed on a Pro/Max plan)"
 fi
 
+if [ ! -f config/nara.yaml ]; then
+  cp config/nara.example.yaml config/nara.yaml
+  echo "→ Created config/nara.yaml from the example (git won't touch it)"
+fi
+
 if command -v ollama >/dev/null 2>&1; then
   echo "→ Pulling models: nomic-embed-text (memory) and qwen3:4b (local chat)"
   ollama pull nomic-embed-text \

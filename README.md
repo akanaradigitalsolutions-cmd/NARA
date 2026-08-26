@@ -48,6 +48,39 @@ nara/
 
 ---
 
+## Quickstart (macOS, from scratch)
+
+Starting from a fresh Mac with no dev tools? Run these in **Terminal**, in order:
+
+```bash
+# 1) Homebrew — the macOS package manager (also installs git). When it finishes,
+#    follow its "Next steps" to add brew to your PATH, then reopen Terminal.
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# 2) The toolchain
+brew install python@3.12 uv ollama node ffmpeg espeak-ng
+brew services start ollama          # run Ollama in the background
+
+# 3) Get NARA and enter the project folder
+git clone https://github.com/akanaradigitalsolutions-cmd/NARA.git
+cd NARA
+git checkout claude/nara-project-setup-uk0hl9
+
+# 4) Set up the environment + brain (venv, install, pull the embedding model)
+bash scripts/setup_mac.sh
+
+# 5) Point NARA at your vault, then build the index and search
+open -e config/nara.yaml            # set vault.path: to your Obsidian vault
+source .venv/bin/activate
+python scripts/index_vault.py
+python -m core.memory search "Relaxha pricing"
+```
+
+Most of the earlier errors just mean you weren't in the `NARA` folder yet (step 3)
+and the tools weren't installed (steps 1–2). The sections below explain each piece.
+
+---
+
 ## Prerequisites (macOS, Apple Silicon)
 
 1. **Homebrew**, then core tools:

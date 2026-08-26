@@ -536,6 +536,7 @@ def main(argv: list[str] | None = None) -> int:
     import argparse
 
     from rich.console import Console
+    from rich.markup import escape
 
     parser = argparse.ArgumentParser(
         prog="nara-memory", description="Query/write NARA's vault memory."
@@ -560,15 +561,20 @@ def main(argv: list[str] | None = None) -> int:
             console.print("[yellow]No results (is the index built? run scripts/index_vault.py)[/]")
             return 0
         for r in results:
-            console.print(f"[bold cyan]{r.location}[/] [dim]({r.path}, d={r.distance:.3f})[/]")
-            console.print(f"  {r.text[:200].strip()}\n")
+            console.print(
+                f"[bold cyan]{escape(r.location)}[/] "
+                f"[dim]({escape(r.path)}, d={r.distance:.3f})[/]"
+            )
+            # Note content is untrusted text — print it literally, not as markup.
+            console.print(f"  {r.text[:200].strip()}", markup=False, highlight=False)
+            console.print()
     elif args.cmd == "remember":
         tags = [t for t in re.split(r"[,\s]+", args.tags) if t]
         path = mm.remember(args.text, tags)
-        console.print(f"[green]Remembered[/] → {path}")
+        console.print(f"[green]Remembered[/] → {escape(str(path))}")
     elif args.cmd == "daily":
         path = mm.daily_log(args.text)
-        console.print(f"[green]Logged[/] → {path}")
+        console.print(f"[green]Logged[/] → {escape(str(path))}")
     return 0
 
 

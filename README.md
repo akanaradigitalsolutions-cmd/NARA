@@ -9,9 +9,10 @@ chat; **cloud Claude** does the heavy reasoning; **Claude Code** does the actual
 coding in your repos. On a 16 GB machine the cloud is the main brain and the
 local model keeps things fast and private — that split is the whole point.
 
-> **Status: Phase 1 — The Brain.** Foundations are in place and NARA can now
-> read, index, and semantically recall your Obsidian vault, plus write notes back
-> (`remember` / `daily_log`). The text agent (Phase 2) is next — see the roadmap.
+> **Status: Phase 2 — The Core Agent (MVP).** NARA is now a working terminal
+> assistant: it recalls your vault automatically, answers with a local model by
+> default and escalates to Claude (on your Pro/Max plan) for hard/long requests,
+> and remembers facts you tell it. Voice (Phase 4) and the desktop app come next.
 
 ---
 
@@ -36,10 +37,12 @@ nara/
 ├── config/nara.yaml        # models, routes, vault path, voices  (edit this)
 ├── core/
 │   ├── config.py           # config + .env loading                (Phase 0 ✓)
-│   ├── orchestrator.py      # the "consciousness" loop             (Phase 0 stub)
-│   ├── router.py           # local vs cloud vs Claude Code        (Phase 2)
+│   ├── orchestrator.py      # the agent loop + chat REPL           (Phase 2 ✓)
+│   ├── router.py           # local vs cloud vs Claude Code        (Phase 2 ✓)
+│   ├── engines.py          # Ollama / claude-cli / Anthropic      (Phase 2 ✓)
+│   ├── persona.py          # system prompt + memory framing       (Phase 2 ✓)
 │   ├── memory.py           # vault RAG: search/remember/daily     (Phase 1 ✓)
-│   └── skills/             # vault, dev, macos, web               (Phase 2/3/7)
+│   └── skills/             # vault, dev, macos, web               (Phase 3/7)
 ├── voice/                  # wake.py, stt.py, tts.py              (Phase 4)
 ├── mcp/servers.json        # Obsidian + filesystem MCP template
 ├── scripts/index_vault.py  # (re)build the vector index          (Phase 1 ✓)
@@ -183,6 +186,31 @@ never leaves the machine, and your own notes are read-only to the indexer: NARA
 only writes inside its own folders. Indexing is idempotent (unchanged notes are
 skipped by mtime) and fully local — no cloud, no API key.
 
+## Chat with NARA (Phase 2)
+
+The agent answers with a **local** model by default and **escalates to Claude**
+(on your Pro/Max plan) for hard or long requests. Prerequisites:
+
+```bash
+ollama pull qwen3:4b     # local chat model (setup_mac.sh does this for you)
+claude login             # for cloud answers, on your Pro/Max subscription
+```
+
+Then talk to it:
+
+```bash
+nara                     # interactive REPL (also: python -m core.orchestrator)
+nara --once "what do I know about Relaxha pricing?"
+nara --status            # config + preflight
+```
+
+Inside the REPL: chat normally; `remember that <fact>` saves to your vault;
+`/status`, `/help`, `/exit`. Each reply shows which engine answered
+(`local · ollama:qwen3:4b`, `cloud · claude-cli`, …). Routing is heuristic
+(config-driven) for now and becomes a cloud-weighted policy with cost tracking in
+Phase 6. Repo/coding requests are recognised (`dev`) and will be delegated to
+Claude Code in Phase 3.
+
 ---
 
 ## Roadmap
@@ -191,7 +219,7 @@ skipped by mtime) and fully local — no cloud, no API key.
 |-------|-----------|----------|
 | **0 ✓** | Foundations | Run the skeleton; it prints `NARA online` |
 | **1 ✓** | The Brain | Index + recall your vault; `remember` / `daily_log` |
-| **2** | Core Agent (text loop) | Hold a memory-grounded conversation in the terminal (MVP) |
+| **2 ✓** | Core Agent (text loop) | Hold a memory-grounded conversation in the terminal (MVP) |
 | **3** | Claude Code integration | "Add Stripe webhooks to Relaxha" → it happens |
 | **4** | Voice | Talk to it hands-free ("Hey Nara…") |
 | **5** | Desktop app | Menu-bar app with a HUD chat/voice window |

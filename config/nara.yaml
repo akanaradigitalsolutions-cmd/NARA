@@ -40,6 +40,14 @@ cloud:
   #          Unlocks per-request Haiku/Sonnet/Opus routing + precise cost tracking
   #          (the cloud_model_* tiers above and Phase 6 budgeting).
   backend: cli
+  timeout_seconds: 120   # cli backend: how long to wait on the `claude` subprocess
+  max_tokens: 4096       # api backend: max tokens per reply
+
+agent:
+  # Phase 2 text loop.
+  local_model: "qwen3:4b"   # small model used for local chat (pull it in Ollama)
+  history_turns: 6          # prior turns kept as context
+  memory_k: 6               # vault notes retrieved per turn
 
 vault:
   # Absolute path to your Obsidian vault. CHANGE THIS to your real vault.

@@ -23,9 +23,9 @@ def test_path_expansion():
     assert "~" not in str(cfg.get("vault.path"))
 
 
-def test_orchestrator_prints_online(capsys):
+def test_orchestrator_status_prints_online(capsys):
     from core.orchestrator import main
 
-    main()
+    main(["--status"])
     out = capsys.readouterr().out
     assert "online" in out.lower()

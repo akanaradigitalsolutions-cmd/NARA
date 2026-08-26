@@ -29,9 +29,11 @@ if [ ! -f .env ]; then
 fi
 
 if command -v ollama >/dev/null 2>&1; then
-  echo "→ Pulling the embedding model (nomic-embed-text)"
+  echo "→ Pulling models: nomic-embed-text (memory) and qwen3:4b (local chat)"
   ollama pull nomic-embed-text \
-    || echo "  ⚠ couldn't pull — is Ollama running?  Try: brew services start ollama"
+    || echo "  ⚠ couldn't pull nomic-embed-text — is Ollama running? brew services start ollama"
+  ollama pull qwen3:4b \
+    || echo "  ⚠ couldn't pull qwen3:4b — is Ollama running? brew services start ollama"
 else
   echo "⚠ 'ollama' not found. Install it with:  brew install ollama"
 fi
@@ -50,4 +52,7 @@ cat <<'DONE'
    3) Build the index and try a search:
         python scripts/index_vault.py
         python -m core.memory search "Relaxha pricing"
+
+   4) Chat with NARA (for cloud answers, run `claude login` first):
+        nara
 DONE

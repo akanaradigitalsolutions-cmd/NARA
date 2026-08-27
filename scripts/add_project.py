@@ -65,7 +65,7 @@ def list_projects() -> int:
 
 
 def add_project(name: str, raw_path: str) -> int:
-    repo = Path(raw_path).expanduser()
+    repo = Path(raw_path).expanduser().resolve()
     if not repo.is_dir():
         print(
             f"✗ Repo folder does not exist: {repo}\n"

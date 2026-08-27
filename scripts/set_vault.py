@@ -43,7 +43,7 @@ def list_vaults() -> int:
 
 
 def set_vault(raw_path: str, create: bool) -> int:
-    vault = Path(raw_path).expanduser()
+    vault = Path(raw_path).expanduser().resolve()
     if create:
         vault.mkdir(parents=True, exist_ok=True)
     if not vault.is_dir():

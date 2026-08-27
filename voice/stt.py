@@ -96,6 +96,35 @@ class STT:
             return np.zeros(0, dtype=np.float32)
         return np.concatenate(collected)
 
+    def record_until(self, stop_check) -> np.ndarray:
+        """Record mono audio until ``stop_check()`` returns True (or max_seconds).
+
+        Reliable manual start/stop — no silence guessing. ``stop_check`` is polled
+        between audio frames (every ~30 ms).
+        """
+        import sounddevice as sd
+
+        frame_ms = 30
+        frame_len = int(self.sample_rate * frame_ms / 1000)
+        max_frames = int(self.max_seconds * 1000 / frame_ms)
+        collected: list[np.ndarray] = []
+        peak = 0.0
+        with sd.InputStream(
+            samplerate=self.sample_rate, channels=1, dtype="float32", blocksize=frame_len
+        ) as stream:
+            for _ in range(max_frames):
+                frame, _overflow = stream.read(frame_len)
+                frame = np.asarray(frame).reshape(-1)
+                collected.append(frame)
+                peak = max(peak, _rms(frame))
+                if stop_check():
+                    break
+        self.last_peak = peak
+        self.last_started = peak >= self.silence_threshold
+        if not collected:
+            return np.zeros(0, dtype=np.float32)
+        return np.concatenate(collected)
+
     def transcribe(self, audio: np.ndarray) -> str:
         if audio.size == 0:
             return ""

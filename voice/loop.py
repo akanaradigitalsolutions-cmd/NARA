@@ -1,47 +1,72 @@
 """Push-to-talk voice loop for NARA (Phase 4).
 
-Press Enter, speak, and NARA transcribes → thinks → speaks the answer back.
-Always-on wake-word ("Hey Nara") is an optional upgrade (see voice/wake.py);
-push-to-talk is the reliable default and needs no wake model.
+Reliable manual control: press Enter to start recording, speak, and press Enter
+again to stop. NARA then transcribes → thinks → speaks the answer. This avoids
+auto silence-detection, which is finicky across mics and noisy rooms.
 """
 from __future__ import annotations
 
+import select
+import sys
+
 from rich.console import Console
+
+
+def _enter_ready() -> bool:
+    """True if a line (Enter) is waiting on stdin, without blocking."""
+    try:
+        return bool(select.select([sys.stdin], [], [], 0)[0])
+    except (OSError, ValueError):
+        return False
+
+
+def _drain_stdin() -> None:
+    while _enter_ready():
+        sys.stdin.readline()
+
+
+def _stop_on_enter() -> bool:
+    if _enter_ready():
+        sys.stdin.readline()
+        return True
+    return False
 
 
 def voice_loop(agent, stt, tts, console: Console | None = None) -> None:
     console = console or Console()
     name = agent.cfg.get("persona.name", "NARA")
     console.print(
-        f"[bold cyan]{name} voice[/] — press [bold]Enter[/] to talk, Ctrl-C to quit."
+        f"[bold cyan]{name} voice[/] — press [bold]Enter[/] to start recording, "
+        "[bold]Enter[/] again to stop. Ctrl-C to quit."
     )
     while True:
         try:
-            console.input("[green]● Enter, then speak…[/] ")
+            console.input("[green]● Enter to start…[/] ")
         except (EOFError, KeyboardInterrupt):
             console.print("\n[dim]Goodbye.[/]")
             return
 
+        console.print("[red]● recording…[/] [dim]speak, then press Enter to stop[/]")
+        _drain_stdin()
         try:
-            with console.status("[dim]listening…[/]", spinner="dots"):
-                text = stt.listen()
-        except Exception as exc:  # mic / whisper / missing deps
-            console.print(
-                f"[red]Voice input failed:[/] {exc}\n"
-                "[dim]Set up voice: brew install portaudio && "
-                "uv pip install -e '.[voice]'[/]"
-            )
+            audio = stt.record_until(_stop_on_enter)
+        except Exception as exc:  # mic / sounddevice / missing deps
+            console.print(f"[red]Mic error:[/] {exc}\n[dim]Test it with: nara voice --check[/]")
             continue
 
+        if not stt.last_started:
+            console.print("[yellow](only silence — speak up, or check the mic input)[/]")
+            continue
+
+        with console.status("[dim]transcribing…[/]", spinner="dots"):
+            try:
+                text = stt.transcribe(audio)
+            except Exception as exc:
+                console.print(f"[red]Transcription failed:[/] {exc}")
+                continue
+
         if not text:
-            if getattr(stt, "last_peak", 1.0) < 0.006:
-                console.print(
-                    "[yellow](only silence — is the mic allowed? System Settings → Privacy "
-                    "& Security → Microphone → enable your terminal, then reopen it. "
-                    "Test with: nara voice --check)[/]"
-                )
-            else:
-                console.print("[dim](didn't catch that — speak a little louder and retry)[/]")
+            console.print("[dim](didn't catch any words — try again)[/]")
             continue
 
         console.print(f"[green]you ›[/] {text}")

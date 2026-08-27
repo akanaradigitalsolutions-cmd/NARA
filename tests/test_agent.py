@@ -11,6 +11,7 @@ from core.engines import EchoEngine, EngineError, Reply
 from core.memory import HashEmbedder, MemoryManager
 from core.orchestrator import Agent
 from core.router import Router
+from core.usage import UsageLog
 
 
 class FailEngine:
@@ -33,7 +34,7 @@ def memory(tmp_path):
 
 
 def _agent(memory, local=None, cloud=None):
-    return Agent(
+    agent = Agent(
         load_config(),
         memory,
         Router(),
@@ -42,6 +43,9 @@ def _agent(memory, local=None, cloud=None):
         history_turns=6,
         memory_k=6,
     )
+    # Keep the usage log inside the test's temp dir (not ~/.nara).
+    agent.usage = UsageLog(memory.vault_path.parent / "usage.jsonl")
+    return agent
 
 
 def test_plain_chat_uses_local_engine(memory):
@@ -95,3 +99,36 @@ def test_engine_fallback_when_primary_fails(memory):
     reply = agent.run("hello there")
     assert reply.engine == "echo-cloud"
     assert "unavailable" in reply.text
+
+
+def test_private_message_forces_local(memory):
+    local, cloud = EchoEngine("echo-local"), EchoEngine("echo-cloud")
+    agent = _agent(memory, local, cloud)
+    reply = agent.run("what is my bank password")
+    assert reply.route == "local"
+    assert cloud.calls == 0
+
+
+def test_low_confidence_escalates_to_cloud(memory):
+    local = EchoEngine("echo-local", reply="I'm not sure about that.")
+    cloud = EchoEngine("echo-cloud", reply="A confident answer.")
+    agent = _agent(memory, local, cloud)
+    reply = agent.run("tell me a fact")
+    assert cloud.calls == 1
+    assert reply.route == "cloud+esc"
+    assert reply.text == "A confident answer."
+
+
+def test_confident_local_does_not_escalate(memory):
+    local = EchoEngine("echo-local", reply="Pickup is 8am daily.")
+    cloud = EchoEngine("echo-cloud")
+    agent = _agent(memory, local, cloud)
+    reply = agent.run("when is pickup")
+    assert cloud.calls == 0
+    assert reply.route == "local"
+
+
+def test_usage_is_recorded(memory):
+    agent = _agent(memory, EchoEngine("echo-local"))
+    agent.run("hello there")
+    assert agent.usage.summary()["total"] == 1

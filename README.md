@@ -9,10 +9,10 @@ chat; **cloud Claude** does the heavy reasoning; **Claude Code** does the actual
 coding in your repos. On a 16 GB machine the cloud is the main brain and the
 local model keeps things fast and private — that split is the whole point.
 
-> **Status: Phase 5 — Desktop app.** NARA now has a macOS menu-bar presence
-> (`nara menubar`, launch-at-login) and a local HTTP service (`nara serve`) that
-> any UI can talk to — on top of chat (0–2), Claude Code delegation (3), and
-> voice (4). Local-first routing + cost tracking (Phase 6) is next.
+> **Status: Phase 6 — Local-first routing + cost tracking.** NARA now keeps
+> sensitive requests on-device, escalates an unsure local answer to Claude,
+> keeps the local model warm, and logs every turn so `nara stats` shows your
+> local-vs-cloud split and spend. Skills & automations (Phase 7) are next.
 
 ---
 
@@ -42,6 +42,7 @@ nara/
 │   ├── engines.py          # Ollama / claude-cli / Anthropic      (Phase 2 ✓)
 │   ├── persona.py          # system prompt + memory framing       (Phase 2 ✓)
 │   ├── memory.py           # vault RAG: search/remember/daily     (Phase 1 ✓)
+│   ├── usage.py            # per-turn usage + cost log            (Phase 6 ✓)
 │   ├── service.py          # local HTTP service (FastAPI)          (Phase 5 ✓)
 │   └── skills/             # dev (Claude Code ✓); macos, web       (Phase 3/7)
 ├── voice/                  # stt.py, tts.py, loop.py; wake.py opt (Phase 4 ✓)
@@ -290,6 +291,28 @@ nara serve                            # http://127.0.0.1:8765
 A richer native HUD (Tauri or SwiftUI) can be layered on this service later —
 the decoupling is what makes that straightforward.
 
+## Local-first routing & cost (Phase 6)
+
+NARA is deliberate about the cloud — no new setup, it's automatic:
+
+- **Privacy** — a message matching `privacy.sensitive_keywords` (password, bank,
+  medical, …) is answered **on-device only**, never sent to the cloud.
+- **Escalation** — if the local model's answer looks unsure, NARA quietly
+  re-asks **Claude** for a better one (unless it's private or over budget).
+- **Warm model** — the local model is kept loaded (`models.keep_alive`) so
+  replies stay snappy.
+- **Budget** — cloud spend is tracked against `budget.monthly_cloud_usd`; over
+  the cap, cloud calls fall back to local (on a subscription, spend is $0).
+
+See your local-vs-cloud split and spend any time:
+
+```bash
+nara stats
+```
+
+Every reply also shows its route inline — `local`, `cloud`, or `cloud+esc`
+(escalated). The raw log lives at `~/.nara/logs/usage.jsonl`.
+
 ---
 
 ## Roadmap
@@ -302,7 +325,7 @@ the decoupling is what makes that straightforward.
 | **3 ✓** | Claude Code integration | "Add Stripe webhooks to Relaxha" → it happens |
 | **4 ✓** | Voice | Talk to it hands-free (`nara voice`, push-to-talk) |
 | **5 ✓** | Desktop app | Menu-bar app (launch-at-login) + local service |
-| **6** | Local + hybrid routing | Local-first, deliberate cloud, visible cost |
+| **6 ✓** | Local + hybrid routing | Local-first, deliberate cloud, visible cost (`nara stats`) |
 | **7** | Skills & automations | Control the Mac + run business workflows |
 | **8** | Hardening | Restart-safe, secure, daily-driver ready |
 

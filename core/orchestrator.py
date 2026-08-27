@@ -13,6 +13,7 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import time
 
 from rich.console import Console
 from rich.panel import Panel
@@ -25,6 +26,7 @@ from .memory import MemoryManager
 from .persona import build_system_prompt, format_memory
 from .router import Router
 from .skills.dev import DevError, DevSkill
+from .usage import UsageLog, budget_status
 
 console = Console()
 
@@ -59,6 +61,8 @@ class Agent:
         self.history_turns = history_turns
         self.memory_k = memory_k
         self.history: list[dict] = []
+        self.usage = UsageLog.from_config(cfg)
+        self.escalate_low_conf = cfg.get("router.escalate_low_confidence", True)
 
     @classmethod
     def from_config(
@@ -100,10 +104,12 @@ class Agent:
     def run(self, user_msg: str) -> Reply:
         remembered = self._maybe_remember(user_msg)
         if remembered is not None:
+            self._record(remembered, 0, user_msg)
             return remembered
 
         memory_block = format_memory(self._safe_search(user_msg))
-        route = self.router.classify(user_msg, context=memory_block)
+        private = self.router.is_private(user_msg)
+        route = "local" if private else self.router.classify(user_msg, context=memory_block)
 
         system = build_system_prompt(self.cfg)
         if memory_block:
@@ -111,24 +117,72 @@ class Agent:
         window = self.history[-2 * self.history_turns :]
         messages = [*window, {"role": "user", "content": user_msg}]
 
-        primary = self.local_engine if route == "local" else self.cloud_engine
-        alternate = self.cloud_engine if route == "local" else self.local_engine
-        try:
-            reply = primary.generate(system, messages)
-        except EngineError:
-            try:
-                reply = alternate.generate(system, messages)
-                reply.text = (
-                    f"({primary.name} unavailable — answered via {alternate.name})\n"
-                    f"{reply.text}"
-                )
-            except EngineError as exc:
-                return Reply(f"Both engines are unavailable. {exc}", "none", route=route)
-        reply.route = route
+        start = time.perf_counter()
+        reply = self._answer(route, system, messages, private=private)
+        latency_ms = int((time.perf_counter() - start) * 1000)
 
+        self._record(reply, latency_ms, user_msg)
         self.history.append({"role": "user", "content": user_msg})
         self.history.append({"role": "assistant", "content": reply.text})
         return reply
+
+    def _answer(self, route: str, system: str, messages: list[dict], *, private: bool) -> Reply:
+        # Budget guard: over the monthly cloud cap -> answer locally.
+        if route in ("cloud", "dev") and not self._cloud_allowed():
+            local = self._safe_generate(self.local_engine, system, messages)
+            if local is not None:
+                local.route = "local"
+                local.text = "(monthly cloud budget reached — answering locally)\n" + local.text
+                return local
+            route = "cloud"  # local unavailable; try cloud anyway
+
+        primary = self.local_engine if route == "local" else self.cloud_engine
+        alternate = self.cloud_engine if route == "local" else self.local_engine
+        reply = self._safe_generate(primary, system, messages)
+        if reply is None:
+            reply = self._safe_generate(alternate, system, messages)
+            if reply is None:
+                return Reply("Both engines are unavailable right now.", "none", route=route)
+            reply.route = "local" if alternate is self.local_engine else "cloud"
+            reply.text = f"({primary.name} unavailable — via {alternate.name})\n{reply.text}"
+            return reply
+
+        reply.route = route
+        # Confidence escalation: an unsure LOCAL answer goes up to the cloud.
+        if (
+            route == "local"
+            and not private
+            and self.escalate_low_conf
+            and self.router.low_confidence(reply.text)
+            and self._cloud_allowed()
+        ):
+            escalated = self._safe_generate(self.cloud_engine, system, messages)
+            if escalated is not None:
+                escalated.route = "cloud+esc"
+                return escalated
+        return reply
+
+    def _safe_generate(self, engine: Engine, system: str, messages: list[dict]) -> Reply | None:
+        try:
+            return engine.generate(system, messages)
+        except EngineError:
+            return None
+
+    def _cloud_allowed(self) -> bool:
+        return not budget_status(self.cfg, self.usage)["over"]
+
+    def _record(self, reply: Reply, latency_ms: int, user_msg: str) -> None:
+        try:
+            self.usage.record(
+                reply.route or "?",
+                reply.engine,
+                latency_ms,
+                reply.cost_usd or 0.0,
+                len(user_msg),
+                len(reply.text),
+            )
+        except Exception:  # usage logging must never break a reply
+            pass
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -211,6 +265,45 @@ def show_status(cfg: Config) -> None:
     console.print(_preflight_table(cfg))
 
 
+def show_stats(cfg: Config) -> None:
+    usage = UsageLog.from_config(cfg)
+    summary = usage.summary()
+    budget = budget_status(cfg, usage)
+
+    table = Table(title="NARA usage", title_style="bold", header_style="bold cyan")
+    table.add_column("Metric")
+    table.add_column("Value", justify="right")
+    table.add_row("Total requests", str(summary["total"]))
+    if summary["total"]:
+        local_pct = round(summary["local"] / summary["total"] * 100)
+        table.add_row("Local", f"{summary['local']} ({local_pct}%)")
+        table.add_row("Cloud", f"{summary['cloud']} ({100 - local_pct}%)")
+    table.add_row("Avg latency", f"{summary['avg_latency_ms']} ms")
+    table.add_row("Cost — all time", f"${summary['total_cost']:.4f}")
+    table.add_row("Cost — this month", f"${summary['month_cost']:.4f}")
+    if budget["cap"]:
+        table.add_row(
+            "Monthly budget",
+            f"${budget['spend']:.2f} / ${budget['cap']:.2f} ({budget['percent']}%)",
+        )
+    console.print(table)
+
+    if summary["by_engine"]:
+        by_engine = Table(title="By engine", title_style="bold", header_style="bold cyan")
+        by_engine.add_column("Engine")
+        by_engine.add_column("Requests", justify="right")
+        for engine, count in sorted(summary["by_engine"].items(), key=lambda kv: -kv[1]):
+            by_engine.add_row(engine, str(count))
+        console.print(by_engine)
+
+    if budget["over"]:
+        console.print(
+            "[bold red]Over the monthly cloud budget — cloud calls fall back to local.[/]"
+        )
+    elif budget["warn"]:
+        console.print(f"[yellow]Heads up: at {budget['percent']}% of the monthly cloud budget.[/]")
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # REPL
 # ─────────────────────────────────────────────────────────────────────────────
@@ -244,6 +337,9 @@ def repl(agent: Agent) -> None:
         if user == "/status":
             show_status(cfg)
             continue
+        if user == "/stats":
+            show_stats(cfg)
+            continue
         if user.startswith("/dev"):
             rest = user[len("/dev") :].strip()
             parts = rest.split(maxsplit=1)
@@ -257,7 +353,7 @@ def repl(agent: Agent) -> None:
             continue
         if user == "/help":
             console.print(
-                "[dim]Chat normally. Commands: /status, /help, /exit, "
+                "[dim]Chat normally. Commands: /status, /stats, /help, /exit, "
                 '/dev <project> "<task>". Say "remember that …" to save a fact.[/]'
             )
             continue
@@ -306,6 +402,7 @@ def main(argv: list[str] | None = None) -> None:
     sub.add_parser("voice", help="hands-free push-to-talk voice loop (Phase 4)")
     sub.add_parser("serve", help="run the local HTTP service for UIs (Phase 5)")
     sub.add_parser("menubar", help="run the macOS menu-bar app (Phase 5)")
+    sub.add_parser("stats", help="show local-vs-cloud usage and spend (Phase 6)")
     args = parser.parse_args(argv)
 
     try:
@@ -335,6 +432,9 @@ def main(argv: list[str] | None = None) -> None:
         from app.menubar import main as menubar_main
 
         menubar_main()
+        return
+    if args.cmd == "stats":
+        show_stats(cfg)
         return
     if args.status:
         show_status(cfg)

@@ -19,6 +19,11 @@ Route = str  # "local" | "cloud" | "dev"
 
 _DEFAULT_DEV = ["code", "repo", "build", "deploy", "debug", "refactor", "test", "commit", "PR"]
 _DEFAULT_CLOUD = ["analyze", "plan", "compare", "research", "synthesize", "strategy"]
+_DEFAULT_SENSITIVE = ["password", "secret", "private", "diary", "medical", "bank", "salary"]
+_DEFAULT_UNCERTAIN = [
+    "i'm not sure", "i am not sure", "i don't know", "i do not know", "not certain",
+    "cannot help", "can't help", "unable to", "no information", "i cannot", "i can't",
+]
 
 
 def _has_keyword(text: str, keywords: list[str]) -> bool:
@@ -31,10 +36,14 @@ class Router:
         dev_keywords: list[str] | None = None,
         cloud_keywords: list[str] | None = None,
         cloud_context_threshold_tokens: int = 800,
+        sensitive_keywords: list[str] | None = None,
+        low_confidence_markers: list[str] | None = None,
     ):
         self.dev_keywords = dev_keywords or list(_DEFAULT_DEV)
         self.cloud_keywords = cloud_keywords or list(_DEFAULT_CLOUD)
         self.cloud_context_threshold_tokens = cloud_context_threshold_tokens
+        self.sensitive_keywords = sensitive_keywords or list(_DEFAULT_SENSITIVE)
+        self.low_confidence_markers = low_confidence_markers or list(_DEFAULT_UNCERTAIN)
 
     @classmethod
     def from_config(cls, cfg: Config) -> Router:
@@ -44,6 +53,8 @@ class Router:
             cloud_context_threshold_tokens=cfg.get(
                 "router.cloud_context_threshold_tokens", 800
             ),
+            sensitive_keywords=cfg.get("privacy.sensitive_keywords", _DEFAULT_SENSITIVE),
+            low_confidence_markers=cfg.get("router.low_confidence_markers", _DEFAULT_UNCERTAIN),
         )
 
     def classify(self, user_msg: str, context: str = "") -> Route:
@@ -56,6 +67,17 @@ class Router:
         if _has_keyword(text, self.cloud_keywords):
             return "cloud"
         return "local"
+
+    def is_private(self, user_msg: str) -> bool:
+        """True if the message looks sensitive — answer locally, never cloud."""
+        return _has_keyword(user_msg.lower(), self.sensitive_keywords)
+
+    def low_confidence(self, text: str) -> bool:
+        """True if a local reply looks unsure enough to escalate to the cloud."""
+        stripped = (text or "").strip().lower()
+        if len(stripped) < 3:
+            return True
+        return any(marker in stripped for marker in self.low_confidence_markers)
 
 
 _default_router: Router | None = None

@@ -29,6 +29,8 @@ models:
   cloud_model_heavy: "claude-opus-4-8"    # hardest tasks
   # Local embedding model for vault RAG (Phase 1), served by Ollama.
   embedding_model: "nomic-embed-text"
+  # Phase 6 — keep the local chat model warm in Ollama between turns.
+  keep_alive: "30m"
 
 cloud:
   # How NARA reaches Claude for cloud reasoning (Phase 2) and dev work (Phase 3):
@@ -77,6 +79,14 @@ router:
   cloud_context_threshold_tokens: 800
   dev_keywords: [code, repo, build, deploy, debug, refactor, test, commit, PR]
   cloud_keywords: [analyze, plan, compare, research, synthesize, strategy]
+  # Phase 6 — escalate an unsure local answer up to the cloud.
+  escalate_low_confidence: true
+  low_confidence_markers: ["i'm not sure", "i don't know", "not certain", "unable to"]
+
+privacy:
+  # Phase 6 — a message matching any of these stays local and never goes to
+  # the cloud (sensitive content is answered on-device only).
+  sensitive_keywords: [password, secret, private, diary, medical, bank, salary]
 
 dev:
   # Phase 3 — "do my dev work" via Claude Code. Map project names to repo paths;

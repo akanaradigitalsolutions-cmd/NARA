@@ -50,16 +50,20 @@ def _flatten(system: str, messages: list[Message]) -> str:
     return "\n".join(parts)
 
 
-def _ollama_chat(client, model: str, payload: list[Message]):
+def _ollama_chat(client, model: str, payload: list[Message], keep_alive=None):
     """Call ollama.chat, disabling reasoning when the client/server supports it.
 
     ``think=False`` gives a direct answer from reasoning models (qwen3, ...) and
     is much faster; older clients/servers reject the kwarg, so retry plainly.
+    ``keep_alive`` keeps the model warm in Ollama between turns.
     """
+    kwargs = {}
+    if keep_alive is not None:
+        kwargs["keep_alive"] = keep_alive
     try:
-        return client.chat(model=model, messages=payload, think=False)
+        return client.chat(model=model, messages=payload, think=False, **kwargs)
     except Exception:  # noqa: BLE001 - unsupported `think`; retry without it
-        return client.chat(model=model, messages=payload)
+        return client.chat(model=model, messages=payload, **kwargs)
 
 
 _THINK_BLOCK = re.compile(r"<think(?:ing)?>.*?</think(?:ing)?>", re.DOTALL | re.IGNORECASE)
@@ -101,9 +105,10 @@ def _extract_chat_text(resp) -> str:
 class OllamaEngine:
     """Local chat via an Ollama model."""
 
-    def __init__(self, model: str, host: str | None = None):
+    def __init__(self, model: str, host: str | None = None, keep_alive=None):
         self.model = model
         self.host = host
+        self.keep_alive = keep_alive
         self.name = f"ollama:{model}"
 
     def generate(self, system: str, messages: list[Message]) -> Reply:
@@ -112,7 +117,7 @@ class OllamaEngine:
         client = ollama.Client(host=self.host) if self.host else ollama
         payload = [{"role": "system", "content": system}, *messages]
         try:
-            resp = _ollama_chat(client, self.model, payload)
+            resp = _ollama_chat(client, self.model, payload, self.keep_alive)
         except Exception as exc:  # ollama raises several connection/response types
             raise EngineError(
                 f"Ollama call failed ({exc}). Is Ollama running and is "
@@ -246,6 +251,6 @@ def build_cloud_engine(cfg) -> Engine:
 
 
 def build_local_engine(cfg) -> Engine:
-    """Local chat engine (small resident model by default)."""
+    """Local chat engine (small resident model, kept warm by keep_alive)."""
     model = cfg.get("agent.local_model") or cfg.get("models.voice_model") or "qwen3:4b"
-    return OllamaEngine(model)
+    return OllamaEngine(model, keep_alive=cfg.get("models.keep_alive"))

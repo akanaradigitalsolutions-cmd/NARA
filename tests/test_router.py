@@ -33,3 +33,17 @@ def test_keyword_matching_is_word_bounded():
     r = Router()
     # "contest" contains "test" but must not trigger the dev route.
     assert r.classify("who won the contest?") == "local"
+
+
+def test_is_private_flags_sensitive():
+    r = Router()
+    assert r.is_private("what is my bank password") is True
+    assert r.is_private("remind me my salary figure") is True
+    assert r.is_private("what's the weather today") is False
+
+
+def test_low_confidence_detection():
+    r = Router()
+    assert r.low_confidence("I'm not sure about that.") is True
+    assert r.low_confidence("") is True
+    assert r.low_confidence("Pickup is 8am daily.") is False

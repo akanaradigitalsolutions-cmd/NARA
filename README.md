@@ -215,13 +215,12 @@ Phase 6.
 ## Do my dev work (Phase 3)
 
 NARA can hand a coding task to **Claude Code** inside one of your repos, on your
-Pro/Max plan. First map your projects in `config/nara.yaml`:
+Pro/Max plan. First register a project — points a name at a local repo, no YAML
+editing:
 
-```yaml
-dev:
-  projects:
-    relaxha: "~/code/relaxha"
-    laundraos: "~/code/laundraos"
+```bash
+python scripts/add_project.py relaxha ~/code/relaxha
+python scripts/add_project.py --list            # see configured projects
 ```
 
 Then delegate:

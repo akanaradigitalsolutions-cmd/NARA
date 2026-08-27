@@ -9,10 +9,10 @@ chat; **cloud Claude** does the heavy reasoning; **Claude Code** does the actual
 coding in your repos. On a 16 GB machine the cloud is the main brain and the
 local model keeps things fast and private — that split is the whole point.
 
-> **Status: Phase 3 — Claude Code integration.** On top of the memory-grounded
-> chat MVP, NARA can now delegate real coding tasks to Claude Code in your project
-> repos (`nara dev <project> "<task>"`), on your Pro/Max plan, and report what
-> changed. Voice (Phase 4) and the desktop app come next.
+> **Status: Phase 4 — Voice.** NARA now talks: a hands-free push-to-talk loop
+> (`nara voice`) lets you speak, and it transcribes → thinks → answers out loud.
+> Built on the memory-grounded chat MVP (Phases 0–2) and Claude Code delegation
+> (Phase 3). The desktop app (Phase 5) is next.
 
 ---
 
@@ -43,7 +43,7 @@ nara/
 │   ├── persona.py          # system prompt + memory framing       (Phase 2 ✓)
 │   ├── memory.py           # vault RAG: search/remember/daily     (Phase 1 ✓)
 │   └── skills/             # dev (Claude Code ✓); macos, web       (Phase 3/7)
-├── voice/                  # wake.py, stt.py, tts.py              (Phase 4)
+├── voice/                  # stt.py, tts.py, loop.py; wake.py opt (Phase 4 ✓)
 ├── mcp/servers.json        # Obsidian + filesystem MCP template
 ├── scripts/index_vault.py  # (re)build the vector index          (Phase 1 ✓)
 └── tests/                  # smoke + memory tests
@@ -237,6 +237,31 @@ and the files that changed (via `git status`). It respects a `dev.max_cost_usd`
 ceiling (relevant in `api` mode; on a subscription, runs are $0). You can also run
 it from the chat REPL with `/dev <project> "<task>"`.
 
+## Talk to NARA (Phase 4)
+
+Hands-free push-to-talk: press Enter, speak, and NARA answers out loud. macOS
+`say` is the built-in voice, so text-to-speech needs nothing; speech-to-text
+needs one extra:
+
+```bash
+brew install portaudio          # lets the mic be recorded
+uv pip install -e ".[voice]"    # faster-whisper (STT) + sounddevice
+```
+
+Then:
+
+```bash
+nara voice
+```
+
+Press **Enter**, speak, and pause — NARA transcribes with Whisper, answers (same
+local/cloud routing as chat), and speaks the reply. Ctrl-C to quit. The first run
+downloads the Whisper model (`voice.stt_model` in config, `small` by default),
+and macOS will ask for **microphone permission** once.
+
+Always-on **"Hey Nara"** wake word is an optional add-on (`.[wake]`,
+openWakeWord); push-to-talk is the reliable default.
+
 ---
 
 ## Roadmap
@@ -247,7 +272,7 @@ it from the chat REPL with `/dev <project> "<task>"`.
 | **1 ✓** | The Brain | Index + recall your vault; `remember` / `daily_log` |
 | **2 ✓** | Core Agent (text loop) | Hold a memory-grounded conversation in the terminal (MVP) |
 | **3 ✓** | Claude Code integration | "Add Stripe webhooks to Relaxha" → it happens |
-| **4** | Voice | Talk to it hands-free ("Hey Nara…") |
+| **4 ✓** | Voice | Talk to it hands-free (`nara voice`, push-to-talk) |
 | **5** | Desktop app | Menu-bar app with a HUD chat/voice window |
 | **6** | Local + hybrid routing | Local-first, deliberate cloud, visible cost |
 | **7** | Skills & automations | Control the Mac + run business workflows |

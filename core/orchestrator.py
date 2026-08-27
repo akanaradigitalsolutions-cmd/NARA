@@ -281,6 +281,16 @@ def run_dev(
     return result.format()
 
 
+def run_voice(cfg: Config) -> None:
+    """Start the hands-free push-to-talk voice loop."""
+    from voice.loop import voice_loop
+    from voice.stt import build_stt
+    from voice.tts import build_tts
+
+    agent = Agent.from_config(cfg)
+    voice_loop(agent, build_stt(cfg), build_tts(cfg))
+
+
 def main(argv: list[str] | None = None) -> None:
     import argparse
 
@@ -293,6 +303,7 @@ def main(argv: list[str] | None = None) -> None:
     p_dev.add_argument("task", help='the coding task, quoted (e.g. "add a /health route")')
     p_dev.add_argument("--allow-bash", action="store_true", help="also permit shell commands")
     p_dev.add_argument("--dry-run", action="store_true", help="plan only; don't edit files")
+    sub.add_parser("voice", help="hands-free push-to-talk voice loop (Phase 4)")
     args = parser.parse_args(argv)
 
     try:
@@ -309,6 +320,9 @@ def main(argv: list[str] | None = None) -> None:
             cfg, args.project, args.task, allow_bash=args.allow_bash, dry_run=args.dry_run
         )
         console.print(out, markup=False, highlight=False)
+        return
+    if args.cmd == "voice":
+        run_voice(cfg)
         return
     if args.status:
         show_status(cfg)

@@ -30,15 +30,18 @@ memory = [
 agent = [
     "claude-agent-sdk>=0.1",
 ]
-# Phase 4 — the voice loop (wake word, speech-to-text, text-to-speech).
+# Phase 4 — the voice loop (speech-to-text + text-to-speech; push-to-talk).
 voice = [
     "faster-whisper>=1.0",
-    "openwakeword>=0.6",
     "sounddevice>=0.5",
     "soundfile>=0.12",
 ]
+# Phase 4 (optional) — always-on "Hey Nara" wake word.
+wake = [
+    "openwakeword>=0.6",
+]
 # Convenience: everything NARA needs at runtime.
-all = ["nara[memory,agent,voice]"]
+all = ["nara[memory,agent,voice,wake]"]
 # Local development tooling.
 dev = [
     "pytest>=8.0",

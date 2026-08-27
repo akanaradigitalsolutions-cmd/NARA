@@ -9,10 +9,10 @@ chat; **cloud Claude** does the heavy reasoning; **Claude Code** does the actual
 coding in your repos. On a 16 GB machine the cloud is the main brain and the
 local model keeps things fast and private — that split is the whole point.
 
-> **Status: Phase 2 — The Core Agent (MVP).** NARA is now a working terminal
-> assistant: it recalls your vault automatically, answers with a local model by
-> default and escalates to Claude (on your Pro/Max plan) for hard/long requests,
-> and remembers facts you tell it. Voice (Phase 4) and the desktop app come next.
+> **Status: Phase 3 — Claude Code integration.** On top of the memory-grounded
+> chat MVP, NARA can now delegate real coding tasks to Claude Code in your project
+> repos (`nara dev <project> "<task>"`), on your Pro/Max plan, and report what
+> changed. Voice (Phase 4) and the desktop app come next.
 
 ---
 
@@ -42,7 +42,7 @@ nara/
 │   ├── engines.py          # Ollama / claude-cli / Anthropic      (Phase 2 ✓)
 │   ├── persona.py          # system prompt + memory framing       (Phase 2 ✓)
 │   ├── memory.py           # vault RAG: search/remember/daily     (Phase 1 ✓)
-│   └── skills/             # vault, dev, macos, web               (Phase 3/7)
+│   └── skills/             # dev (Claude Code ✓); macos, web       (Phase 3/7)
 ├── voice/                  # wake.py, stt.py, tts.py              (Phase 4)
 ├── mcp/servers.json        # Obsidian + filesystem MCP template
 ├── scripts/index_vault.py  # (re)build the vector index          (Phase 1 ✓)
@@ -210,8 +210,33 @@ Inside the REPL: chat normally; `remember that <fact>` saves to your vault;
 `/status`, `/help`, `/exit`. Each reply shows which engine answered
 (`local · ollama:qwen3:4b`, `cloud · claude-cli`, …). Routing is heuristic
 (config-driven) for now and becomes a cloud-weighted policy with cost tracking in
-Phase 6. Repo/coding requests are recognised (`dev`) and will be delegated to
-Claude Code in Phase 3.
+Phase 6.
+
+## Do my dev work (Phase 3)
+
+NARA can hand a coding task to **Claude Code** inside one of your repos, on your
+Pro/Max plan. First map your projects in `config/nara.yaml`:
+
+```yaml
+dev:
+  projects:
+    relaxha: "~/code/relaxha"
+    laundraos: "~/code/laundraos"
+```
+
+Then delegate:
+
+```bash
+nara dev relaxha "add a /health endpoint and a test for it"
+nara dev relaxha "refactor the booking model" --dry-run   # plan only, no edits
+nara dev laundraos "fix the failing CI lint" --allow-bash # also permit shell
+```
+
+NARA runs Claude Code headless with `--permission-mode acceptEdits` (file edits
+auto-approved; **never** `--dangerously-skip-permissions`), then reports a summary
+and the files that changed (via `git status`). It respects a `dev.max_cost_usd`
+ceiling (relevant in `api` mode; on a subscription, runs are $0). You can also run
+it from the chat REPL with `/dev <project> "<task>"`.
 
 ---
 
@@ -222,7 +247,7 @@ Claude Code in Phase 3.
 | **0 ✓** | Foundations | Run the skeleton; it prints `NARA online` |
 | **1 ✓** | The Brain | Index + recall your vault; `remember` / `daily_log` |
 | **2 ✓** | Core Agent (text loop) | Hold a memory-grounded conversation in the terminal (MVP) |
-| **3** | Claude Code integration | "Add Stripe webhooks to Relaxha" → it happens |
+| **3 ✓** | Claude Code integration | "Add Stripe webhooks to Relaxha" → it happens |
 | **4** | Voice | Talk to it hands-free ("Hey Nara…") |
 | **5** | Desktop app | Menu-bar app with a HUD chat/voice window |
 | **6** | Local + hybrid routing | Local-first, deliberate cloud, visible cost |

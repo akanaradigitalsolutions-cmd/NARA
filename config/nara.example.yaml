@@ -79,10 +79,12 @@ router:
   cloud_keywords: [analyze, plan, compare, research, synthesize, strategy]
 
 dev:
-  # Phase 3 — map project names to local repo paths for "do my dev work".
-  max_cost_usd: 2.0
+  # Phase 3 — "do my dev work" via Claude Code. Map project names to repo paths;
+  # run with:  nara dev <project> "<task>"   (or /dev in the chat REPL).
+  max_cost_usd: 2.0        # api-metered ceiling; on a subscription cost is $0
+  timeout_seconds: 1800    # max time for one Claude Code run
   projects:
-    # name: /path/to/repo
+    # name: /path/to/repo   (CHANGE these to your real repos)
     relaxha: "~/code/relaxha"
     laundraos: "~/code/laundraos"
 

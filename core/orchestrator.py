@@ -24,6 +24,7 @@ from .engines import Engine, EngineError, Reply, build_cloud_engine, build_local
 from .memory import MemoryManager
 from .persona import build_system_prompt, format_memory
 from .router import Router
+from .skills.dev import DevError, DevSkill
 
 console = Console()
 
@@ -243,10 +244,21 @@ def repl(agent: Agent) -> None:
         if user == "/status":
             show_status(cfg)
             continue
+        if user.startswith("/dev"):
+            rest = user[len("/dev") :].strip()
+            parts = rest.split(maxsplit=1)
+            if len(parts) < 2:
+                console.print('[dim]Usage: /dev <project> "<task>"[/]')
+                continue
+            project, task = parts[0], parts[1]
+            with console.status(f"[dim]Claude Code working in {project}…[/]", spinner="dots"):
+                out = run_dev(cfg, project, task)
+            console.print(out, markup=False, highlight=False)
+            continue
         if user == "/help":
             console.print(
-                "[dim]Chat normally. Commands: /status, /help, /exit. "
-                "Say 'remember that …' to save a fact to your vault.[/]"
+                "[dim]Chat normally. Commands: /status, /help, /exit, "
+                '/dev <project> "<task>". Say "remember that …" to save a fact.[/]'
             )
             continue
         with console.status("[dim]thinking…[/]", spinner="dots"):
@@ -257,12 +269,30 @@ def repl(agent: Agent) -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 # Entry point
 # ─────────────────────────────────────────────────────────────────────────────
+def run_dev(
+    cfg: Config, project: str, task: str, *, allow_bash: bool = False, dry_run: bool = False
+) -> str:
+    """Delegate a coding task to Claude Code and return a formatted summary."""
+    dev = DevSkill.from_config(cfg)
+    try:
+        result = dev.run_task(project, task, allow_bash=allow_bash, dry_run=dry_run)
+    except DevError as exc:
+        return f"[dev] {exc}"
+    return result.format()
+
+
 def main(argv: list[str] | None = None) -> None:
     import argparse
 
     parser = argparse.ArgumentParser(prog="nara", description="NARA — your terminal assistant.")
     parser.add_argument("--status", action="store_true", help="show config + preflight, then exit")
     parser.add_argument("--once", metavar="MESSAGE", help="send one message and exit")
+    sub = parser.add_subparsers(dest="cmd")
+    p_dev = sub.add_parser("dev", help="delegate a coding task to Claude Code in a project repo")
+    p_dev.add_argument("project", help="project name from dev.projects in config")
+    p_dev.add_argument("task", help='the coding task, quoted (e.g. "add a /health route")')
+    p_dev.add_argument("--allow-bash", action="store_true", help="also permit shell commands")
+    p_dev.add_argument("--dry-run", action="store_true", help="plan only; don't edit files")
     args = parser.parse_args(argv)
 
     try:
@@ -273,6 +303,13 @@ def main(argv: list[str] | None = None) -> None:
         )
         raise SystemExit(1) from None
 
+    if args.cmd == "dev":
+        console.print(f"[dim]Delegating to Claude Code in '{args.project}'…[/]")
+        out = run_dev(
+            cfg, args.project, args.task, allow_bash=args.allow_bash, dry_run=args.dry_run
+        )
+        console.print(out, markup=False, highlight=False)
+        return
     if args.status:
         show_status(cfg)
         return

@@ -12,8 +12,8 @@ How you operate:
 - Ground answers in the notes from memory when they're relevant. If the notes
   don't cover it, say so rather than inventing specifics.
 - You run in a terminal, so keep replies short and skimmable.
-- If asked to do something that touches a code repository, note that you'll be
-  able to run it directly once dev delegation (Phase 3) is wired up.
+- For a coding task in one of the user's projects, you can run it for real with
+  Claude Code: tell them to use `nara dev <project> "<task>"` (or /dev in chat).
 """
 
 

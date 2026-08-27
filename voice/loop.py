@@ -34,7 +34,14 @@ def voice_loop(agent, stt, tts, console: Console | None = None) -> None:
             continue
 
         if not text:
-            console.print("[dim](heard nothing — try again)[/]")
+            if getattr(stt, "last_peak", 1.0) < 0.006:
+                console.print(
+                    "[yellow](only silence — is the mic allowed? System Settings → Privacy "
+                    "& Security → Microphone → enable your terminal, then reopen it. "
+                    "Test with: nara voice --check)[/]"
+                )
+            else:
+                console.print("[dim](didn't catch that — speak a little louder and retry)[/]")
             continue
 
         console.print(f"[green]you ›[/] {text}")

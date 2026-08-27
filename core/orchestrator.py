@@ -377,14 +377,36 @@ def run_dev(
     return result.format()
 
 
-def run_voice(cfg: Config) -> None:
-    """Start the hands-free push-to-talk voice loop."""
-    from voice.loop import voice_loop
+def run_voice(cfg: Config, check: bool = False) -> None:
+    """Start the voice loop, or (``check``) run a quick microphone self-test."""
     from voice.stt import build_stt
+
+    stt = build_stt(cfg)
+    if check:
+        console.print("[dim]Testing microphone for 2s — say something now…[/]")
+        try:
+            peak = stt.mic_level(2.0)
+        except Exception as exc:
+            console.print(
+                f"[red]Mic error:[/] {exc}\n[dim]Grant your terminal Microphone access in "
+                "System Settings → Privacy & Security, then reopen it.[/]"
+            )
+            return
+        if peak >= 0.01:
+            console.print(f"[green]Mic works ✓[/]  (peak level {peak:.4f})")
+        else:
+            console.print(
+                f"[yellow]Very quiet[/] (peak {peak:.4f}). Enable Microphone for your "
+                "terminal in System Settings → Privacy & Security → Microphone and reopen "
+                "it, or check the input device isn't muted."
+            )
+        return
+
+    from voice.loop import voice_loop
     from voice.tts import build_tts
 
     agent = Agent.from_config(cfg)
-    voice_loop(agent, build_stt(cfg), build_tts(cfg))
+    voice_loop(agent, stt, build_tts(cfg))
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -399,7 +421,8 @@ def main(argv: list[str] | None = None) -> None:
     p_dev.add_argument("task", help='the coding task, quoted (e.g. "add a /health route")')
     p_dev.add_argument("--allow-bash", action="store_true", help="also permit shell commands")
     p_dev.add_argument("--dry-run", action="store_true", help="plan only; don't edit files")
-    sub.add_parser("voice", help="hands-free push-to-talk voice loop (Phase 4)")
+    p_voice = sub.add_parser("voice", help="hands-free push-to-talk voice loop (Phase 4)")
+    p_voice.add_argument("--check", action="store_true", help="test the microphone and exit")
     sub.add_parser("serve", help="run the local HTTP service for UIs (Phase 5)")
     sub.add_parser("menubar", help="run the macOS menu-bar app (Phase 5)")
     sub.add_parser("stats", help="show local-vs-cloud usage and spend (Phase 6)")
@@ -421,7 +444,7 @@ def main(argv: list[str] | None = None) -> None:
         console.print(out, markup=False, highlight=False)
         return
     if args.cmd == "voice":
-        run_voice(cfg)
+        run_voice(cfg, check=args.check)
         return
     if args.cmd == "serve":
         from .service import main as serve_main

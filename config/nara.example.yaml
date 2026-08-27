@@ -72,6 +72,8 @@ voice:
   stt_model: "small"            # faster-whisper size: tiny | base | small | medium
   tts_engine: "macos"           # kokoro | macos | elevenlabs
   silence_ms: 800               # stop recording after this much silence
+  silence_threshold: 0.01       # mic RMS below this is "silence" (lower = more sensitive)
+  prespeech_seconds: 6          # give up if no speech is heard within this long
   push_to_talk_hotkey: "cmd+shift+space"
 
 router:

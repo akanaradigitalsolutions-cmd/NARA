@@ -9,10 +9,10 @@ chat; **cloud Claude** does the heavy reasoning; **Claude Code** does the actual
 coding in your repos. On a 16 GB machine the cloud is the main brain and the
 local model keeps things fast and private — that split is the whole point.
 
-> **Status: Phase 4 — Voice.** NARA now talks: a hands-free push-to-talk loop
-> (`nara voice`) lets you speak, and it transcribes → thinks → answers out loud.
-> Built on the memory-grounded chat MVP (Phases 0–2) and Claude Code delegation
-> (Phase 3). The desktop app (Phase 5) is next.
+> **Status: Phase 5 — Desktop app.** NARA now has a macOS menu-bar presence
+> (`nara menubar`, launch-at-login) and a local HTTP service (`nara serve`) that
+> any UI can talk to — on top of chat (0–2), Claude Code delegation (3), and
+> voice (4). Local-first routing + cost tracking (Phase 6) is next.
 
 ---
 
@@ -42,11 +42,13 @@ nara/
 │   ├── engines.py          # Ollama / claude-cli / Anthropic      (Phase 2 ✓)
 │   ├── persona.py          # system prompt + memory framing       (Phase 2 ✓)
 │   ├── memory.py           # vault RAG: search/remember/daily     (Phase 1 ✓)
+│   ├── service.py          # local HTTP service (FastAPI)          (Phase 5 ✓)
 │   └── skills/             # dev (Claude Code ✓); macos, web       (Phase 3/7)
 ├── voice/                  # stt.py, tts.py, loop.py; wake.py opt (Phase 4 ✓)
+├── app/menubar.py          # macOS menu-bar app (rumps)            (Phase 5 ✓)
 ├── mcp/servers.json        # Obsidian + filesystem MCP template
-├── scripts/index_vault.py  # (re)build the vector index          (Phase 1 ✓)
-└── tests/                  # smoke + memory tests
+├── scripts/                # index_vault, set_vault, add_project, install_menubar
+└── tests/                  # unit tests (offline)
 ```
 
 ---
@@ -262,6 +264,32 @@ and macOS will ask for **microphone permission** once.
 Always-on **"Hey Nara"** wake word is an optional add-on (`.[wake]`,
 openWakeWord); push-to-talk is the reliable default.
 
+## Desktop app (Phase 5)
+
+Give NARA a **menu-bar presence** and start it at login — a lightweight
+pure-Python path (no Rust/Node build):
+
+```bash
+uv pip install -e ".[menubar]"       # rumps (macOS only)
+nara menubar                          # run it now…
+python scripts/install_menubar.py     # …or start it automatically at login
+```
+
+The menu-bar icon opens NARA's chat (`nara`) or voice (`nara voice`) in a
+Terminal, reindexes the vault, or shows status. Remove the login item with
+`python scripts/install_menubar.py --uninstall`.
+
+There's also a **local HTTP service** so any UI or script can reach the same core:
+
+```bash
+uv pip install -e ".[service]"
+nara serve                            # http://127.0.0.1:8765
+# GET /status  ·  POST /chat {"message": "…"}  ·  POST /reindex
+```
+
+A richer native HUD (Tauri or SwiftUI) can be layered on this service later —
+the decoupling is what makes that straightforward.
+
 ---
 
 ## Roadmap
@@ -273,7 +301,7 @@ openWakeWord); push-to-talk is the reliable default.
 | **2 ✓** | Core Agent (text loop) | Hold a memory-grounded conversation in the terminal (MVP) |
 | **3 ✓** | Claude Code integration | "Add Stripe webhooks to Relaxha" → it happens |
 | **4 ✓** | Voice | Talk to it hands-free (`nara voice`, push-to-talk) |
-| **5** | Desktop app | Menu-bar app with a HUD chat/voice window |
+| **5 ✓** | Desktop app | Menu-bar app (launch-at-login) + local service |
 | **6** | Local + hybrid routing | Local-first, deliberate cloud, visible cost |
 | **7** | Skills & automations | Control the Mac + run business workflows |
 | **8** | Hardening | Restart-safe, secure, daily-driver ready |

@@ -93,6 +93,11 @@ budget:
   monthly_cloud_usd: 50
   warn_at_percent: 80
 
+service:
+  # Phase 5 — local HTTP service (nara serve) for UIs and scripts.
+  host: "127.0.0.1"
+  port: 8765
+
 logging:
   path: "~/.nara/logs"
   level: "INFO"    # DEBUG | INFO | WARNING | ERROR

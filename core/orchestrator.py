@@ -304,6 +304,8 @@ def main(argv: list[str] | None = None) -> None:
     p_dev.add_argument("--allow-bash", action="store_true", help="also permit shell commands")
     p_dev.add_argument("--dry-run", action="store_true", help="plan only; don't edit files")
     sub.add_parser("voice", help="hands-free push-to-talk voice loop (Phase 4)")
+    sub.add_parser("serve", help="run the local HTTP service for UIs (Phase 5)")
+    sub.add_parser("menubar", help="run the macOS menu-bar app (Phase 5)")
     args = parser.parse_args(argv)
 
     try:
@@ -323,6 +325,16 @@ def main(argv: list[str] | None = None) -> None:
         return
     if args.cmd == "voice":
         run_voice(cfg)
+        return
+    if args.cmd == "serve":
+        from .service import main as serve_main
+
+        serve_main()
+        return
+    if args.cmd == "menubar":
+        from app.menubar import main as menubar_main
+
+        menubar_main()
         return
     if args.status:
         show_status(cfg)

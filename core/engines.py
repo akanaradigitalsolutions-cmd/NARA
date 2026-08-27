@@ -14,6 +14,7 @@ module loads without ollama/anthropic installed.
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from dataclasses import dataclass
 from typing import Protocol
@@ -61,11 +62,28 @@ def _ollama_chat(client, model: str, payload: list[Message]):
         return client.chat(model=model, messages=payload)
 
 
+_THINK_BLOCK = re.compile(r"<think(?:ing)?>.*?</think(?:ing)?>", re.DOTALL | re.IGNORECASE)
+_THINK_CLOSE = re.compile(r"</think(?:ing)?>", re.IGNORECASE)
+
+
+def _strip_thinking(text: str) -> str:
+    """Remove a reasoning model's <think>…</think> trace from the reply text."""
+    if not text:
+        return ""
+    cleaned = _THINK_BLOCK.sub("", text)
+    closings = list(_THINK_CLOSE.finditer(cleaned))
+    if closings:  # the server dropped the opener but left a stray </think>
+        cleaned = cleaned[closings[-1].end() :]
+    return cleaned.strip()
+
+
 def _extract_chat_text(resp) -> str:
     """Pull the reply text from an ollama chat response (dict or object).
 
-    Reasoning models may put the answer in ``content`` and the chain-of-thought
-    in ``thinking``; if ``content`` is empty, fall back to ``thinking``.
+    Reasoning models (qwen3, ...) may wrap their chain-of-thought in
+    ``<think>…</think>`` inside ``content``, or return it in a separate
+    ``thinking`` field. Strip the trace; fall back to ``thinking`` only if that
+    leaves nothing.
     """
     message = resp.get("message") if isinstance(resp, dict) else getattr(resp, "message", None)
     if message is None:
@@ -74,9 +92,9 @@ def _extract_chat_text(resp) -> str:
         content, thinking = message.get("content"), message.get("thinking")
     else:
         content, thinking = getattr(message, "content", None), getattr(message, "thinking", None)
-    text = (content or "").strip()
+    text = _strip_thinking(content or "")
     if not text and thinking:
-        text = thinking.strip()
+        text = (thinking or "").strip()
     return text
 
 

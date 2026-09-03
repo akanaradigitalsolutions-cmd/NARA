@@ -1,8 +1,9 @@
 """macOS control skill (Phase 7).
 
-Open/activate apps, run named Shortcuts, and set Focus via ``osascript`` and the
-``shortcuts`` CLI. macOS-only at runtime; the command builders are pure Python
-and testable anywhere via an injectable runner.
+Open apps (via ``open -a``), run named Shortcuts and set Focus (via the
+``shortcuts`` CLI), and run arbitrary AppleScript (via ``osascript``). macOS-only
+at runtime; the command builders are pure Python and testable anywhere via an
+injectable runner.
 """
 from __future__ import annotations
 
@@ -26,7 +27,10 @@ class MacControl:
         return self._runner(["osascript", "-e", script])
 
     def open_app(self, name: str) -> str:
-        self.run_applescript(f'tell application "{name}" to activate')
+        # `open -a` launches or brings an app to the front. Unlike AppleScript's
+        # `activate`, it needs no Automation permission and is forgiving about
+        # the app's exact name and case (e.g. "whatsapp" opens WhatsApp).
+        self._runner(["open", "-a", name])
         return f"Opened {name}."
 
     def run_shortcut(self, name: str) -> str:

@@ -34,11 +34,18 @@ def make_runner(output: str = "", error: Exception | None = None):
     return runner
 
 
-def test_open_app_builds_applescript():
+def test_open_app_uses_open_command():
     runner = make_runner()
     mac = MacControl(runner=runner)
-    assert mac.open_app("Safari") == "Opened Safari."
-    assert runner.calls == [["osascript", "-e", 'tell application "Safari" to activate']]
+    assert mac.open_app("WhatsApp") == "Opened WhatsApp."
+    assert runner.calls == [["open", "-a", "WhatsApp"]]
+
+
+def test_run_applescript_calls_osascript():
+    runner = make_runner(output="hello")
+    mac = MacControl(runner=runner)
+    assert mac.run_applescript("return 1") == "hello"
+    assert runner.calls == [["osascript", "-e", "return 1"]]
 
 
 def test_run_shortcut_uses_cli():

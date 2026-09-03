@@ -9,10 +9,11 @@ chat; **cloud Claude** does the heavy reasoning; **Claude Code** does the actual
 coding in your repos. On a 16 GB machine the cloud is the main brain and the
 local model keeps things fast and private — that split is the whole point.
 
-> **Status: Phase 7 — Skills & automations.** NARA now *does things*: controls
-> macOS (open apps, run Shortcuts, set Focus), researches the web into your vault
-> via Claude, and drafts on-brand marketing content (bilingual EN/ID) grounded in
-> your notes. Run `nara skills` to see them. Hardening (Phase 8) is next.
+> **Status: Phase 8 — Hardening. NARA is feature-complete. 🎉** All eight phases
+> are done: NARA runs at login and restarts itself if it crashes
+> (`scripts/install_service.py`), logs to a rotating file, fails with clear
+> messages instead of tracebacks, and ships a one-command health check —
+> `nara doctor` — that tells you exactly what's working and what to fix.
 
 ---
 
@@ -44,12 +45,14 @@ nara/
 │   ├── memory.py           # vault RAG: search/remember/daily     (Phase 1 ✓)
 │   ├── usage.py            # per-turn usage + cost log            (Phase 6 ✓)
 │   ├── service.py          # local HTTP service (FastAPI)          (Phase 5 ✓)
+│   ├── doctor.py           # `nara doctor` health check           (Phase 8 ✓)
+│   ├── logging_setup.py    # rotating file logs                   (Phase 8 ✓)
 │   └── skills/             # dev · macos · web · content           (Phase 3/7 ✓)
 ├── voice/                  # stt.py, tts.py, loop.py; wake.py opt (Phase 4 ✓)
 ├── app/menubar.py          # macOS menu-bar app (rumps)            (Phase 5 ✓)
 ├── mcp/servers.json        # Obsidian + filesystem MCP template
-├── scripts/                # index_vault, set_vault, add_project, install_menubar
-└── tests/                  # unit tests (offline)
+├── scripts/                # index_vault, set_vault, add_project, install_service
+└── tests/                  # unit tests (offline; 101 passing)
 ```
 
 ---
@@ -355,6 +358,35 @@ Configure where notes are saved with `web.save_folder` / `content.save_folder`,
 and how many vault notes seed a draft with `content.search_k`. In the chat REPL,
 `/skills` shows the same list.
 
+## Hardening — daily-driver ready (Phase 8)
+
+The finishing pass that makes NARA dependable enough to leave running.
+
+**Health check** — one command tells you exactly what's working and what to fix
+(each row comes with the exact command to fix it):
+
+```bash
+nara doctor
+```
+
+It checks Python, your config, the vault, cloud auth (and warns if
+`ANTHROPIC_API_KEY` is set while on a subscription), Ollama + the models you
+need, the vault index, free disk, logs, and login auto-start — then exits
+non-zero if anything's broken, so scripts can rely on it. `/doctor` runs it
+inside the chat REPL too.
+
+**Start at login, restart on crash** — install NARA's core service as a macOS
+LaunchAgent so it's always running and reachable:
+
+```bash
+python scripts/install_service.py            # start at login + keep alive
+python scripts/install_service.py --uninstall
+```
+
+**Tidy & safe** — every run logs to a rotating file (`~/.nara/logs/nara.log`), and
+an unexpected error shows a short, friendly message (with the details in the log)
+instead of a scary traceback. Check the version any time with `nara --version`.
+
 ---
 
 ## Roadmap
@@ -369,9 +401,12 @@ and how many vault notes seed a draft with `content.search_k`. In the chat REPL,
 | **5 ✓** | Desktop app | Menu-bar app (launch-at-login) + local service |
 | **6 ✓** | Local + hybrid routing | Local-first, deliberate cloud, visible cost (`nara stats`) |
 | **7 ✓** | Skills & automations | Control the Mac, research the web, draft content (`nara skills`) |
-| **8** | Hardening | Restart-safe, secure, daily-driver ready |
+| **8 ✓** | Hardening | Restart-safe, self-checking (`nara doctor`), daily-driver ready |
 
-The MVP is **Phases 0–2**. Each phase after that is independently valuable.
+**All eight phases are complete.** The MVP was **Phases 0–2**; each phase after
+that is independently valuable, and together they make NARA a full hybrid
+assistant — local-first, cloud-smart, voice-capable, and now dependable enough
+to run every day.
 
 ## Privacy & cost notes
 

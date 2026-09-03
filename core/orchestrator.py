@@ -10,6 +10,7 @@ default, cloud Claude for hard/long requests) -> remember salient facts. Usage::
 """
 from __future__ import annotations
 
+import logging
 import os
 import re
 import shutil
@@ -21,7 +22,9 @@ from rich.table import Table
 from rich.text import Text
 
 from .config import Config, load_config
+from .doctor import exit_code, run_checks, worst
 from .engines import Engine, EngineError, Reply, build_cloud_engine, build_local_engine
+from .logging_setup import setup_logging
 from .memory import MemoryManager
 from .persona import build_system_prompt, format_memory
 from .router import Router
@@ -347,6 +350,9 @@ def repl(agent: Agent) -> None:
         if user == "/skills":
             show_skills(cfg)
             continue
+        if user == "/doctor":
+            show_doctor(cfg)
+            continue
         if user.startswith("/dev"):
             rest = user[len("/dev") :].strip()
             parts = rest.split(maxsplit=1)
@@ -360,8 +366,8 @@ def repl(agent: Agent) -> None:
             continue
         if user == "/help":
             console.print(
-                "[dim]Chat normally. Commands: /status, /stats, /skills, /help, /exit, "
-                '/dev <project> "<task>". Say "remember that …" to save a fact.[/]'
+                "[dim]Chat normally. Commands: /status, /stats, /skills, /doctor, /help, "
+                '/exit, /dev <project> "<task>". Say "remember that …" to save a fact.[/]'
             )
             continue
         with console.status("[dim]thinking…[/]", spinner="dots"):
@@ -489,6 +495,103 @@ def show_skills(cfg: Config) -> None:
     console.print(table)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Doctor — health check (Phase 8)
+# ─────────────────────────────────────────────────────────────────────────────
+_STATUS_STYLE = {"ok": ("● ok", "green"), "warn": ("● warn", "yellow"), "fail": ("● fail", "red")}
+
+
+def show_doctor(cfg: Config) -> int:
+    """Render the health check and return an exit code (1 if anything failed)."""
+    checks = run_checks(cfg)
+    table = Table(title="NARA doctor", title_style="bold", header_style="bold cyan")
+    table.add_column("Check")
+    table.add_column("Status")
+    table.add_column("Detail / fix", overflow="fold")
+    for check in checks:
+        label, colour = _STATUS_STYLE.get(check.status, ("?", "white"))
+        # Build the cell as Text (no markup parsing) — hints contain [brackets].
+        detail = Text(check.detail)
+        if check.hint:
+            if check.detail:
+                detail.append("\n")
+            detail.append(check.hint, style="dim")
+        table.add_row(check.name, Text(label, style=colour), detail)
+    console.print(table)
+
+    overall = worst(checks)
+    if overall == "fail":
+        console.print("[bold red]Some checks failed — follow the fixes above.[/]")
+    elif overall == "warn":
+        console.print("[yellow]Mostly good — a few things could be better (fixes above).[/]")
+    else:
+        console.print("[bold green]All systems go — NARA is ready. ✦[/]")
+    return exit_code(checks)
+
+
+def _version() -> str:
+    try:
+        from importlib.metadata import version
+
+        return version("nara")
+    except Exception:
+        return "0.1.0"
+
+
+def _dispatch(cfg: Config, args) -> int:
+    if args.cmd == "dev":
+        console.print(f"[dim]Delegating to Claude Code in '{args.project}'…[/]")
+        out = run_dev(
+            cfg, args.project, args.task, allow_bash=args.allow_bash, dry_run=args.dry_run
+        )
+        console.print(out, markup=False, highlight=False)
+        return 0
+    if args.cmd == "voice":
+        run_voice(cfg, check=args.check)
+        return 0
+    if args.cmd == "serve":
+        from .service import main as serve_main
+
+        serve_main()
+        return 0
+    if args.cmd == "menubar":
+        from app.menubar import main as menubar_main
+
+        menubar_main()
+        return 0
+    if args.cmd == "stats":
+        show_stats(cfg)
+        return 0
+    if args.cmd == "macos":
+        console.print(run_macos(cfg, args.action, args.target), markup=False, highlight=False)
+        return 0
+    if args.cmd == "web":
+        console.print(f"[dim]Researching '{args.query}' via Claude…[/]")
+        console.print(run_web(cfg, args.mode, args.query), markup=False, highlight=False)
+        return 0
+    if args.cmd == "draft":
+        console.print(f"[dim]Drafting a {args.kind} about '{args.topic}' via Claude…[/]")
+        out = run_draft(cfg, args.topic, kind=args.kind, bilingual=args.bilingual)
+        console.print(out, markup=False, highlight=False)
+        return 0
+    if args.cmd == "skills":
+        show_skills(cfg)
+        return 0
+    if args.cmd == "doctor":
+        return show_doctor(cfg)
+    if args.status:
+        show_status(cfg)
+        return 0
+
+    agent = Agent.from_config(cfg)
+    if args.once:
+        reply = agent.run(args.once)
+        console.print(reply.text, markup=False, highlight=False)
+        return 0
+    repl(agent)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> None:
     import argparse
 
@@ -517,6 +620,8 @@ def main(argv: list[str] | None = None) -> None:
     p_draft.add_argument("--kind", default="caption", choices=["caption", "listing", "outreach"])
     p_draft.add_argument("--bilingual", action="store_true", help="Bahasa Indonesia + English")
     sub.add_parser("skills", help="list what NARA can do (Phase 7)")
+    sub.add_parser("doctor", help="health-check your NARA setup (Phase 8)")
+    parser.add_argument("--version", action="version", version=f"NARA {_version()}")
     args = parser.parse_args(argv)
 
     try:
@@ -527,54 +632,28 @@ def main(argv: list[str] | None = None) -> None:
         )
         raise SystemExit(1) from None
 
-    if args.cmd == "dev":
-        console.print(f"[dim]Delegating to Claude Code in '{args.project}'…[/]")
-        out = run_dev(
-            cfg, args.project, args.task, allow_bash=args.allow_bash, dry_run=args.dry_run
+    setup_logging(cfg)
+    try:
+        code = _dispatch(cfg, args)
+    except KeyboardInterrupt:
+        console.print("\n[dim]Interrupted.[/]")
+        return
+    except Exception as exc:
+        logging.getLogger("nara").exception("command failed: %s", args.cmd or "chat")
+        console.print(
+            Panel(
+                str(exc) or exc.__class__.__name__,
+                title="[red]Something went wrong[/]",
+                border_style="red",
+            )
         )
-        console.print(out, markup=False, highlight=False)
-        return
-    if args.cmd == "voice":
-        run_voice(cfg, check=args.check)
-        return
-    if args.cmd == "serve":
-        from .service import main as serve_main
-
-        serve_main()
-        return
-    if args.cmd == "menubar":
-        from app.menubar import main as menubar_main
-
-        menubar_main()
-        return
-    if args.cmd == "stats":
-        show_stats(cfg)
-        return
-    if args.cmd == "macos":
-        console.print(run_macos(cfg, args.action, args.target), markup=False, highlight=False)
-        return
-    if args.cmd == "web":
-        console.print(f"[dim]Researching '{args.query}' via Claude…[/]")
-        console.print(run_web(cfg, args.mode, args.query), markup=False, highlight=False)
-        return
-    if args.cmd == "draft":
-        console.print(f"[dim]Drafting a {args.kind} about '{args.topic}' via Claude…[/]")
-        out = run_draft(cfg, args.topic, kind=args.kind, bilingual=args.bilingual)
-        console.print(out, markup=False, highlight=False)
-        return
-    if args.cmd == "skills":
-        show_skills(cfg)
-        return
-    if args.status:
-        show_status(cfg)
-        return
-
-    agent = Agent.from_config(cfg)
-    if args.once:
-        reply = agent.run(args.once)
-        console.print(reply.text, markup=False, highlight=False)
-        return
-    repl(agent)
+        console.print(
+            "[dim]Details logged to ~/.nara/logs/nara.log — run `nara doctor` "
+            "to check your setup.[/]"
+        )
+        raise SystemExit(1) from None
+    if code:
+        raise SystemExit(code)
 
 
 if __name__ == "__main__":

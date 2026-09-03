@@ -9,10 +9,10 @@ chat; **cloud Claude** does the heavy reasoning; **Claude Code** does the actual
 coding in your repos. On a 16 GB machine the cloud is the main brain and the
 local model keeps things fast and private — that split is the whole point.
 
-> **Status: Phase 6 — Local-first routing + cost tracking.** NARA now keeps
-> sensitive requests on-device, escalates an unsure local answer to Claude,
-> keeps the local model warm, and logs every turn so `nara stats` shows your
-> local-vs-cloud split and spend. Skills & automations (Phase 7) are next.
+> **Status: Phase 7 — Skills & automations.** NARA now *does things*: controls
+> macOS (open apps, run Shortcuts, set Focus), researches the web into your vault
+> via Claude, and drafts on-brand marketing content (bilingual EN/ID) grounded in
+> your notes. Run `nara skills` to see them. Hardening (Phase 8) is next.
 
 ---
 
@@ -44,7 +44,7 @@ nara/
 │   ├── memory.py           # vault RAG: search/remember/daily     (Phase 1 ✓)
 │   ├── usage.py            # per-turn usage + cost log            (Phase 6 ✓)
 │   ├── service.py          # local HTTP service (FastAPI)          (Phase 5 ✓)
-│   └── skills/             # dev (Claude Code ✓); macos, web       (Phase 3/7)
+│   └── skills/             # dev · macos · web · content           (Phase 3/7 ✓)
 ├── voice/                  # stt.py, tts.py, loop.py; wake.py opt (Phase 4 ✓)
 ├── app/menubar.py          # macOS menu-bar app (rumps)            (Phase 5 ✓)
 ├── mcp/servers.json        # Obsidian + filesystem MCP template
@@ -313,6 +313,48 @@ nara stats
 Every reply also shows its route inline — `local`, `cloud`, or `cloud+esc`
 (escalated). The raw log lives at `~/.nara/logs/usage.jsonl`.
 
+## Skills & automations (Phase 7)
+
+NARA stops being just a chat box and starts *doing things*. See everything it can
+do at a glance:
+
+```bash
+nara skills
+```
+
+**Control your Mac** — open apps, run any Shortcut you've built, or set a Focus
+mode (macOS-only; each uses `osascript` / the `shortcuts` CLI):
+
+```bash
+nara macos open Obsidian
+nara macos shortcut "Morning Routine"
+nara macos focus Work            # runs your Focus-named Shortcut
+nara macos list                  # list your Shortcuts
+```
+
+**Research the web into your vault** — the work is delegated to Claude (which has
+web search + fetch), so it runs on your Pro/Max subscription with no extra API.
+The summary is saved as a note under `NARA/Web/`:
+
+```bash
+nara web search "Bali spa marketing trends 2026"
+nara web url https://example.com/some-article
+```
+
+**Draft marketing content** grounded in your own vault notes — captions, listing
+copy, or partner outreach for Relaxha / the laundry, optionally **bilingual**
+(Bahasa Indonesia + English). Drafts land under `NARA/Content/`:
+
+```bash
+nara draft "weekend spa promo" --kind caption --bilingual
+nara draft "new villa laundry service" --kind listing
+nara draft "collab with a yoga studio" --kind outreach
+```
+
+Configure where notes are saved with `web.save_folder` / `content.save_folder`,
+and how many vault notes seed a draft with `content.search_k`. In the chat REPL,
+`/skills` shows the same list.
+
 ---
 
 ## Roadmap
@@ -326,7 +368,7 @@ Every reply also shows its route inline — `local`, `cloud`, or `cloud+esc`
 | **4 ✓** | Voice | Talk to it hands-free (`nara voice`, push-to-talk) |
 | **5 ✓** | Desktop app | Menu-bar app (launch-at-login) + local service |
 | **6 ✓** | Local + hybrid routing | Local-first, deliberate cloud, visible cost (`nara stats`) |
-| **7** | Skills & automations | Control the Mac + run business workflows |
+| **7 ✓** | Skills & automations | Control the Mac, research the web, draft content (`nara skills`) |
 | **8** | Hardening | Restart-safe, secure, daily-driver ready |
 
 The MVP is **Phases 0–2**. Each phase after that is independently valuable.

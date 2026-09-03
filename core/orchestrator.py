@@ -25,7 +25,11 @@ from .engines import Engine, EngineError, Reply, build_cloud_engine, build_local
 from .memory import MemoryManager
 from .persona import build_system_prompt, format_memory
 from .router import Router
+from .skills import skill_specs
+from .skills.content import ContentSkill
 from .skills.dev import DevError, DevSkill
+from .skills.macos import MacControl
+from .skills.web import WebSkill
 from .usage import UsageLog, budget_status
 
 console = Console()
@@ -340,6 +344,9 @@ def repl(agent: Agent) -> None:
         if user == "/stats":
             show_stats(cfg)
             continue
+        if user == "/skills":
+            show_skills(cfg)
+            continue
         if user.startswith("/dev"):
             rest = user[len("/dev") :].strip()
             parts = rest.split(maxsplit=1)
@@ -353,7 +360,7 @@ def repl(agent: Agent) -> None:
             continue
         if user == "/help":
             console.print(
-                "[dim]Chat normally. Commands: /status, /stats, /help, /exit, "
+                "[dim]Chat normally. Commands: /status, /stats, /skills, /help, /exit, "
                 '/dev <project> "<task>". Say "remember that …" to save a fact.[/]'
             )
             continue
@@ -409,6 +416,79 @@ def run_voice(cfg: Config, check: bool = False) -> None:
     voice_loop(agent, stt, build_tts(cfg))
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Skills (Phase 7): macOS control · web research · content drafting
+# ─────────────────────────────────────────────────────────────────────────────
+def run_macos(cfg: Config, action: str, target: str | None = None) -> str:
+    """Control macOS: open apps, run Shortcuts, set Focus, list Shortcuts."""
+    mac = MacControl()
+    action = action.lower()
+    try:
+        if action == "open":
+            return mac.open_app(_need(target, 'nara macos open "<App>"'))
+        if action == "shortcut":
+            return mac.run_shortcut(_need(target, 'nara macos shortcut "<Name>"'))
+        if action == "focus":
+            return mac.set_focus(_need(target, 'nara macos focus "<Mode>"'))
+        if action == "list":
+            names = mac.list_shortcuts()
+            if not names:
+                return "No Shortcuts found."
+            return "Shortcuts:\n" + "\n".join(f"  - {n}" for n in names)
+        return f"Unknown macOS action '{action}'. Try: open | shortcut | focus | list."
+    except RuntimeError as exc:
+        return f"[macos] {exc}"
+
+
+def _need(value: str | None, usage: str) -> str:
+    if not value:
+        raise RuntimeError(f"missing argument — usage: {usage}")
+    return value
+
+
+def run_web(cfg: Config, mode: str, query: str) -> str:
+    """Research the web via the cloud engine and save a note to the vault."""
+    engine = build_cloud_engine(cfg)
+
+    def researcher(prompt: str) -> str:
+        return engine.generate(
+            "You are a precise research assistant. Be factual and cite sources.",
+            [{"role": "user", "content": prompt}],
+        ).text
+
+    web = WebSkill.from_config(cfg, researcher)
+    try:
+        if mode.lower() == "url":
+            path = web.summarize_url(query)
+        else:
+            path = web.research(query)
+    except EngineError as exc:
+        return f"[web] cloud engine unavailable: {exc}"
+    return f"Saved research → {path}"
+
+
+def run_draft(cfg: Config, topic: str, kind: str = "caption", bilingual: bool = False) -> str:
+    """Draft marketing content grounded in the vault and save it."""
+    memory = MemoryManager.from_config(cfg)
+    engine = build_cloud_engine(cfg)
+    content = ContentSkill.from_config(cfg, memory, engine)
+    try:
+        text, path = content.draft(topic, kind=kind, bilingual=bilingual)
+    except EngineError as exc:
+        return f"[draft] cloud engine unavailable: {exc}"
+    return f"{text.strip()}\n\nsaved → {path}"
+
+
+def show_skills(cfg: Config) -> None:
+    table = Table(title="NARA skills", title_style="bold", header_style="bold cyan")
+    table.add_column("Skill", style="bold")
+    table.add_column("What it does", overflow="fold")
+    table.add_column("Run it with", overflow="fold")
+    for spec in skill_specs():
+        table.add_row(spec["name"], spec["summary"], "\n".join(spec["commands"]))
+    console.print(table)
+
+
 def main(argv: list[str] | None = None) -> None:
     import argparse
 
@@ -426,6 +506,17 @@ def main(argv: list[str] | None = None) -> None:
     sub.add_parser("serve", help="run the local HTTP service for UIs (Phase 5)")
     sub.add_parser("menubar", help="run the macOS menu-bar app (Phase 5)")
     sub.add_parser("stats", help="show local-vs-cloud usage and spend (Phase 6)")
+    p_macos = sub.add_parser("macos", help="control macOS apps, Shortcuts and Focus (Phase 7)")
+    p_macos.add_argument("action", help="open | shortcut | focus | list")
+    p_macos.add_argument("target", nargs="?", help="app / Shortcut / Focus-mode name")
+    p_web = sub.add_parser("web", help="research the web into your vault (Phase 7)")
+    p_web.add_argument("mode", choices=["search", "url"], help="'search' a query or fetch a 'url'")
+    p_web.add_argument("query", help="the search query, or the URL to summarize")
+    p_draft = sub.add_parser("draft", help="draft marketing content from your vault (Phase 7)")
+    p_draft.add_argument("topic", help="what to write about, quoted")
+    p_draft.add_argument("--kind", default="caption", choices=["caption", "listing", "outreach"])
+    p_draft.add_argument("--bilingual", action="store_true", help="Bahasa Indonesia + English")
+    sub.add_parser("skills", help="list what NARA can do (Phase 7)")
     args = parser.parse_args(argv)
 
     try:
@@ -458,6 +549,21 @@ def main(argv: list[str] | None = None) -> None:
         return
     if args.cmd == "stats":
         show_stats(cfg)
+        return
+    if args.cmd == "macos":
+        console.print(run_macos(cfg, args.action, args.target), markup=False, highlight=False)
+        return
+    if args.cmd == "web":
+        console.print(f"[dim]Researching '{args.query}' via Claude…[/]")
+        console.print(run_web(cfg, args.mode, args.query), markup=False, highlight=False)
+        return
+    if args.cmd == "draft":
+        console.print(f"[dim]Drafting a {args.kind} about '{args.topic}' via Claude…[/]")
+        out = run_draft(cfg, args.topic, kind=args.kind, bilingual=args.bilingual)
+        console.print(out, markup=False, highlight=False)
+        return
+    if args.cmd == "skills":
+        show_skills(cfg)
         return
     if args.status:
         show_status(cfg)

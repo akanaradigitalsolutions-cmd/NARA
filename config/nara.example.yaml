@@ -100,6 +100,19 @@ dev:
     relaxha: "~/code/relaxha"
     laundraos: "~/code/laundraos"
 
+web:
+  # Phase 7 — research the web and save a note to your vault.
+  #   nara web search "<query>"   ·   nara web url <url>
+  # The work is delegated to Claude (cloud engine), which has web tools, so it
+  # runs on your subscription with no extra API. Summaries land here:
+  save_folder: "NARA/Web"
+
+content:
+  # Phase 7 — draft marketing content grounded in your vault notes.
+  #   nara draft "<topic>" [--kind caption|listing|outreach] [--bilingual]
+  save_folder: "NARA/Content"
+  search_k: 5              # vault notes pulled in as the brief
+
 budget:
   # Phase 6 — cloud spend guardrails.
   monthly_cloud_usd: 50

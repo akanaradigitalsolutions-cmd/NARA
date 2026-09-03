@@ -44,6 +44,7 @@
     srLive: document.getElementById("srLive"),
     composer: document.getElementById("composer"),
     composerInput: document.getElementById("composerInput"),
+    micBtn: document.getElementById("micBtn"),
     buttons: Array.from(document.querySelectorAll(".controls button")),
   };
 
@@ -120,18 +121,74 @@
   });
   socket.connect();
 
+  function sendMessage(text) {
+    if (!socket.send(text)) {
+      transcript.addNara(
+        "I'm not linked to the service yet — open me from http://127.0.0.1:8765/ui " +
+        "with `nara serve` running."
+      );
+      setState("idle");
+    }
+  }
+
   el.composer.addEventListener("submit", (e) => {
     e.preventDefault();
     const text = el.composerInput.value.trim();
     if (!text) return;
     el.composerInput.value = "";
     transcript.addUser(text);
-    if (!socket.send(text)) {
-      transcript.addNara(
-        "I'm not linked to the service yet — open me from http://127.0.0.1:8765/ui " +
-        "with `nara serve` running."
-      );
+    sendMessage(text);
+  });
+
+  // ── Voice input (speech-to-text) ─────────────────────────────────────────
+  let voiceOn = false;
+  let sentThisTurn = false;
+
+  function setMic(on) {
+    voiceOn = on;
+    el.micBtn.setAttribute("aria-pressed", String(on));
+  }
+
+  const voice = new VoiceInput({
+    onPartial(text) {
+      transcript.liveUser(text);
+    },
+    onFinal(text) {
+      sentThisTurn = true;
+      transcript.commitUser(text);
+      sendMessage(text); // server drives thinking → speaking → idle
+    },
+    onEnd() {
+      setMic(false);
+      if (!sentThisTurn && hud.dataset.state === "listening") setState("idle");
+    },
+    onError(err) {
+      setMic(false);
+      const note =
+        err === "not-allowed" || err === "service-not-allowed"
+          ? "Microphone is blocked. Allow mic access for this page — and open me from " +
+            "http://127.0.0.1:8765/ui (not the file://… address), in Chrome."
+          : err === "no-speech-api"
+            ? "Voice input needs Chrome (or Safari). You can type in the box instead."
+            : err === "no-speech"
+              ? "I didn't catch that — tap 🎤 and speak again."
+              : "Voice error: " + err;
+      transcript.addNara(note);
+      if (hud.dataset.state === "listening") setState("idle");
+    },
+  });
+
+  el.micBtn.addEventListener("click", () => {
+    if (voiceOn) {
+      voice.stop();
+      setMic(false);
+      if (hud.dataset.state === "listening") setState("idle");
+      return;
     }
+    sentThisTurn = false;
+    setState("listening"); // turns on the reactor's band mic too
+    if (voice.start()) setMic(true);
+    else setState("idle");
   });
 
   // ── Demo controls ──────────────────────────────────────────────────────

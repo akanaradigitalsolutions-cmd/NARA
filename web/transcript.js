@@ -32,6 +32,24 @@
     this._bubble("YOU", "you").textContent = text;
   };
 
+  // Live speech: show the partial transcript in a single updating bubble…
+  Transcript.prototype.liveUser = function (text) {
+    if (!this._liveUserP) this._liveUserP = this._bubble("YOU", "you partial");
+    this._liveUserP.textContent = text;
+    this._scroll();
+  };
+
+  // …then finalise it (or create a plain one if there was no partial).
+  Transcript.prototype.commitUser = function (text) {
+    if (this._liveUserP) {
+      this._liveUserP.textContent = text;
+      this._liveUserP.parentNode.classList.remove("partial");
+      this._liveUserP = null;
+    } else {
+      this.addUser(text);
+    }
+  };
+
   // Add a NARA turn; reveals `text` progressively for a streaming feel.
   // `onDone` fires when the reveal completes (immediately under reduced motion).
   Transcript.prototype.addNara = function (text, onDone) {

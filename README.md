@@ -405,12 +405,18 @@ open web/index.html            # macOS — see it immediately
 **http://127.0.0.1:8765/ui**. The demo control bar (or number keys **1–8**) walks
 the core through all eight states; `#state=thinking` deep-links one.
 
-**Use the served URL (`http://127.0.0.1:8765/ui`) for the live features** — the
-reactor's band reacts to your **real microphone** in the listening state (allow
-mic access once), and the message box runs the real agent: your turn appears, the
-core goes *thinking → speaking*, and NARA's reply **streams back** with live
-model/latency/cost telemetry. (Over `file://` the mic and websocket are blocked by
-the browser, so those degrade gracefully and the demo controls still work.)
+**Use the served URL (`http://127.0.0.1:8765/ui`) in Chrome for the live
+features** (over `file://` the browser blocks the mic and websocket):
+
+- **Talk to it** — tap the **🎤** button and speak. Your words transcribe **live**
+  in the transcript (Web Speech API), the reactor's band moves with your **real
+  voice**, and on a pause the message is sent to NARA.
+- **Or type** in the message box.
+
+Either way the real agent runs: your turn appears, the core goes *thinking →
+speaking*, and NARA's reply **streams back** with live model/latency/cost
+telemetry. Everything degrades gracefully when the service isn't running, and the
+demo controls (buttons / keys 1–8) always work.
 
 **UI build phases** (tokens → living core → reactivity → telemetry → polish):
 

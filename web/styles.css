@@ -250,6 +250,20 @@ html, body {
 }
 .composer button:hover { color: var(--text-primary); border-color: rgba(0, 229, 255, 0.5); }
 .composer button:focus-visible { outline: 2px solid var(--core-cyan); outline-offset: 2px; }
+
+.mic-btn { font-size: 14px; line-height: 1; }
+.mic-btn[aria-pressed="true"] {
+  border-color: var(--alert-red);
+  box-shadow: 0 0 16px rgba(255, 59, 78, 0.6);
+  animation: mic-pulse 1.2s var(--ease-loop) infinite;
+}
+@keyframes mic-pulse {
+  0%, 100% { box-shadow: 0 0 14px rgba(255, 59, 78, 0.45); }
+  50% { box-shadow: 0 0 22px rgba(255, 59, 78, 0.85); }
+}
+
+.bubble.partial { opacity: 0.6; font-style: italic; }
+.bubble.partial .who::after { content: " · listening…"; color: var(--core-cyan-soft); }
 .panel-title,
 .controls-hint,
 .telemetry-note {

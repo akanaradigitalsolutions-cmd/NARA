@@ -53,3 +53,23 @@ def test_root_redirects_to_ui():
     resp = _client().get("/")  # TestClient follows the redirect
     assert resp.status_code == 200
     assert "Command Center" in resp.text
+
+
+def test_ws_streams_state_and_reply():
+    with _client().websocket_connect("/ws") as ws:
+        ws.send_json({"message": "hello"})
+        events = []
+        for _ in range(12):
+            evt = ws.receive_json()
+            events.append(evt)
+            if evt.get("type") == "state" and evt.get("state") == "idle":
+                break
+    types = [e["type"] for e in events]
+    assert "state" in types
+    turn = next(e for e in events if e["type"] == "turn")
+    assert turn["text"] == "echo: hello"  # from FakeAgent
+    assert turn["route"] == "local"
+    assert "latency_ms" in turn
+    # thinking must precede speaking must precede idle
+    states = [e["state"] for e in events if e["type"] == "state"]
+    assert states.index("thinking") < states.index("speaking") < states.index("idle")

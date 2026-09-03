@@ -17,7 +17,7 @@ from .config import REPO_ROOT, Config, load_config
 
 def create_app(cfg: Config | None = None, agent=None):
     """Build the FastAPI app. ``agent`` may be injected (tests); else built lazily."""
-    from fastapi import FastAPI
+    from fastapi import FastAPI, WebSocket, WebSocketDisconnect
     from pydantic import BaseModel
 
     cfg = cfg or load_config()
@@ -55,6 +55,44 @@ def create_app(cfg: Config | None = None, agent=None):
 
         stats = MemoryManager.from_config(cfg).reindex()
         return {"stats": str(stats)}
+
+    @app.websocket("/ws")
+    async def ws(sock: WebSocket):
+        """Drive the HUD: receive a user message, stream back state + reply.
+
+        Emits state transitions (thinking → speaking → idle) and a `turn` event
+        carrying NARA's reply plus live telemetry (engine, route, cost, latency).
+        """
+        import time as _time
+
+        from starlette.concurrency import run_in_threadpool
+
+        await sock.accept()
+        try:
+            while True:
+                data = await sock.receive_json()
+                message = str((data or {}).get("message", "")).strip()
+                if not message:
+                    continue
+                await sock.send_json({"type": "state", "state": "thinking"})
+                t0 = _time.perf_counter()
+                reply = await run_in_threadpool(get_agent().run, message)
+                latency_ms = int((_time.perf_counter() - t0) * 1000)
+                await sock.send_json({"type": "state", "state": "speaking"})
+                await sock.send_json(
+                    {
+                        "type": "turn",
+                        "who": "nara",
+                        "text": reply.text,
+                        "engine": reply.engine,
+                        "route": reply.route,
+                        "cost": reply.cost_usd or 0.0,
+                        "latency_ms": latency_ms,
+                    }
+                )
+                await sock.send_json({"type": "state", "state": "idle"})
+        except WebSocketDisconnect:
+            return
 
     # Serve the JARVIS HUD (web/) at /ui, and redirect the bare root to it.
     web_dir = REPO_ROOT / "web"

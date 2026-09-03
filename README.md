@@ -405,13 +405,20 @@ open web/index.html            # macOS — see it immediately
 **http://127.0.0.1:8765/ui**. The demo control bar (or number keys **1–8**) walks
 the core through all eight states; `#state=thinking` deep-links one.
 
+**Use the served URL (`http://127.0.0.1:8765/ui`) for the live features** — the
+reactor's band reacts to your **real microphone** in the listening state (allow
+mic access once), and the message box runs the real agent: your turn appears, the
+core goes *thinking → speaking*, and NARA's reply **streams back** with live
+model/latency/cost telemetry. (Over `file://` the mic and websocket are blocked by
+the browser, so those degrade gracefully and the demo controls still work.)
+
 **UI build phases** (tokens → living core → reactivity → telemetry → polish):
 
 | UI Phase | Milestone | Status |
 |----------|-----------|--------|
 | 1 | Design tokens + glass shell (grid, vignette, panels) | ✅ |
 | 2 | Reactor Core + 8-state machine (breathing, rings, band, bloom) | ✅ |
-| 3 | Voice reactivity (Web Audio) + streaming transcript over websocket | ⬜ |
+| 3 | Voice reactivity (Web Audio) + streaming transcript over websocket | ✅ |
 | 4 | Telemetry HUD (live model/latency/cost/RAM) + staged boot sequence | ⬜ |
 | 5 | Sound cues, HUD alerts, command palette, accessibility pass | ⬜ |
 

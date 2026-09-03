@@ -50,6 +50,8 @@
     this.sweep = 0;             // thinking sweep position
     this.exec = 0;              // executing progress 0..1
     this.amp = new Float32Array(BAR_COUNT); // smoothed band amplitudes
+    this._extAmp = new Float32Array(BAR_COUNT); // buffer for a live audio source
+    this.amplitudeProvider = null; // optional fn(Float32Array)->bool (real mic/TTS)
     this._raf = null;
     this._last = 0;
 
@@ -132,9 +134,19 @@
     this._raf = requestAnimationFrame(this._frame);
   };
 
-  // Synthesised per-state amplitudes (real audio replaces this in UI Phase 3).
+  // Synthesised per-state amplitudes — but a live audio source (mic while
+  // listening) takes over via amplitudeProvider when one is active.
   Reactor.prototype._updateBand = function (dt) {
     const t = this.t, mode = this.band;
+    if (this.amplitudeProvider && (mode === "listen" || mode === "speak")) {
+      if (this.amplitudeProvider(this._extAmp)) {
+        const sm = 1 - Math.pow(0.0004, dt);
+        for (let i = 0; i < BAR_COUNT; i++) {
+          this.amp[i] = lerp(this.amp[i], this._extAmp[i], sm);
+        }
+        return;
+      }
+    }
     const target = (i) => {
       const a = (i / BAR_COUNT) * TAU;
       switch (mode) {

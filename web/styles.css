@@ -211,6 +211,45 @@ html, body {
   min-height: 0;
   overflow: hidden;
 }
+.panel-head { display: flex; align-items: center; justify-content: space-between; }
+.link {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+}
+.link.on { color: var(--ok-green); text-shadow: 0 0 10px rgba(34, 227, 154, 0.4); }
+
+.composer { display: flex; gap: var(--s2); }
+.composer input {
+  flex: 1;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--text-primary);
+  background: rgba(5, 7, 10, 0.6);
+  border: var(--hairline);
+  border-radius: 8px;
+  padding: var(--s2) var(--s3);
+  caret-color: var(--core-cyan);
+}
+.composer input::placeholder { color: var(--text-dim); }
+.composer input:focus-visible {
+  outline: none;
+  border-color: rgba(0, 229, 255, 0.55);
+  box-shadow: var(--glow-tight);
+}
+.composer button {
+  font-size: 15px;
+  color: var(--core-cyan);
+  background: var(--surface-glass);
+  border: var(--hairline);
+  border-radius: 8px;
+  padding: 0 var(--s3);
+  cursor: pointer;
+  transition: color var(--dur-micro), border-color var(--dur-micro);
+}
+.composer button:hover { color: var(--text-primary); border-color: rgba(0, 229, 255, 0.5); }
+.composer button:focus-visible { outline: 2px solid var(--core-cyan); outline-offset: 2px; }
 .panel-title,
 .controls-hint,
 .telemetry-note {

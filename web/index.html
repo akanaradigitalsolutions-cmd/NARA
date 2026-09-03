@@ -42,21 +42,21 @@
 
     <!-- Transcript (preview of the visual language; live streaming comes in UI Phase 3) -->
     <aside class="transcript glass brackets" aria-label="Conversation">
-      <div class="panel-title">TRANSCRIPT</div>
+      <div class="panel-head">
+        <span class="panel-title">TRANSCRIPT</span>
+        <span class="link" id="link" title="Backend service link">○ offline</span>
+      </div>
       <div class="stream" id="stream">
         <div class="bubble nara">
           <span class="who">NARA</span>
           <p>Systems online. I'm listening whenever you are.</p>
         </div>
-        <div class="bubble you">
-          <span class="who">YOU</span>
-          <p>What's on for Relaxha today?</p>
-        </div>
-        <div class="bubble nara">
-          <span class="who">NARA</span>
-          <p>Two spa bookings at 14:00 and a laundry pickup at 16:30. Want the details?</p>
-        </div>
       </div>
+      <form class="composer" id="composer" autocomplete="off">
+        <input id="composerInput" type="text" placeholder="Message NARA…"
+               aria-label="Message NARA" />
+        <button type="submit" aria-label="Send message">▸</button>
+      </form>
     </aside>
 
     <!-- Telemetry strip -->
@@ -88,6 +88,9 @@
   </div>
 
   <script src="./reactor.js"></script>
+  <script src="./audio.js"></script>
+  <script src="./transcript.js"></script>
+  <script src="./net.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>

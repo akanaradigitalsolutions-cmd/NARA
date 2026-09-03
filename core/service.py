@@ -12,7 +12,7 @@ Endpoints:
 Run:  nara serve   (or: python -m core.service)
 """
 
-from .config import Config, load_config
+from .config import REPO_ROOT, Config, load_config
 
 
 def create_app(cfg: Config | None = None, agent=None):
@@ -55,6 +55,18 @@ def create_app(cfg: Config | None = None, agent=None):
 
         stats = MemoryManager.from_config(cfg).reindex()
         return {"stats": str(stats)}
+
+    # Serve the JARVIS HUD (web/) at /ui, and redirect the bare root to it.
+    web_dir = REPO_ROOT / "web"
+    if web_dir.is_dir():
+        from fastapi.responses import RedirectResponse
+        from fastapi.staticfiles import StaticFiles
+
+        @app.get("/")
+        def root():
+            return RedirectResponse(url="/ui/")
+
+        app.mount("/ui", StaticFiles(directory=str(web_dir), html=True), name="ui")
 
     return app
 

@@ -41,3 +41,15 @@ def test_chat_endpoint():
 def test_chat_requires_message():
     resp = _client().post("/chat", json={})
     assert resp.status_code == 422  # validation error
+
+
+def test_ui_is_served():
+    resp = _client().get("/ui/")
+    assert resp.status_code == 200
+    assert "NARA" in resp.text
+
+
+def test_root_redirects_to_ui():
+    resp = _client().get("/")  # TestClient follows the redirect
+    assert resp.status_code == 200
+    assert "Command Center" in resp.text

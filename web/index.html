@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NARA — Command Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <!-- data-state drives the whole HUD's theming; JS keeps it in sync -->
+  <div class="hud" id="hud" data-state="offline">
+    <div class="bg-grid" aria-hidden="true"></div>
+    <div class="bg-vignette" aria-hidden="true"></div>
+
+    <!-- Top bar -->
+    <header class="topbar glass brackets" role="banner">
+      <div class="brand">
+        <span class="wordmark">NARA</span>
+        <span class="subtitle">NEURAL ASSISTANT · RESPONSIVE · AUTONOMOUS</span>
+      </div>
+      <div class="state-readout" title="Current state">
+        <span class="state-dot" aria-hidden="true"></span>
+        <span id="stateLabel" class="state-text">OFFLINE</span>
+      </div>
+    </header>
+
+    <!-- Center stage: the reactor -->
+    <main class="stage" role="main">
+      <div class="reactor-wrap">
+        <canvas id="reactor" width="680" height="680" aria-hidden="true"></canvas>
+        <div class="hud-ring-label label-top">STATE // <b id="hudState">OFFLINE</b></div>
+        <div class="hud-ring-label label-left">MODEL // <b id="hudModel">—</b></div>
+        <div class="hud-ring-label label-right">LATENCY // <b id="hudLatency">—</b></div>
+      </div>
+    </main>
+
+    <!-- Transcript (preview of the visual language; live streaming comes in UI Phase 3) -->
+    <aside class="transcript glass brackets" aria-label="Conversation">
+      <div class="panel-title">TRANSCRIPT</div>
+      <div class="stream" id="stream">
+        <div class="bubble nara">
+          <span class="who">NARA</span>
+          <p>Systems online. I'm listening whenever you are.</p>
+        </div>
+        <div class="bubble you">
+          <span class="who">YOU</span>
+          <p>What's on for Relaxha today?</p>
+        </div>
+        <div class="bubble nara">
+          <span class="who">NARA</span>
+          <p>Two spa bookings at 14:00 and a laundry pickup at 16:30. Want the details?</p>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Telemetry strip -->
+    <section class="telemetry glass" aria-label="Telemetry">
+      <div class="gauge"><span class="k">MODEL</span><span class="v" id="tModel">—</span></div>
+      <div class="gauge"><span class="k">LATENCY</span><span class="v" id="tLatency">—</span></div>
+      <div class="gauge"><span class="k">TOKENS</span><span class="v" id="tTokens">—</span></div>
+      <div class="gauge"><span class="k">SESSION&nbsp;$</span><span class="v" id="tCost">—</span></div>
+      <div class="gauge"><span class="k">RAM</span><span class="v" id="tRam">—</span></div>
+      <div class="gauge"><span class="k">CPU</span><span class="v" id="tCpu">—</span></div>
+      <div class="telemetry-note">live values arrive in UI Phase 4</div>
+    </section>
+
+    <!-- Demo state controls (in the real app, state comes from the backend) -->
+    <nav class="controls" aria-label="Demo: switch NARA's state">
+      <span class="controls-hint">DEMO · click or press 1–8</span>
+      <button data-set="offline">Offline</button>
+      <button data-set="booting">Boot</button>
+      <button data-set="idle">Idle</button>
+      <button data-set="listening">Listening</button>
+      <button data-set="thinking">Thinking</button>
+      <button data-set="speaking">Speaking</button>
+      <button data-set="executing">Executing</button>
+      <button data-set="alert">Alert</button>
+    </nav>
+
+    <!-- Screen-reader state announcements (reactor itself is decorative) -->
+    <div class="sr-only" aria-live="polite" id="srLive"></div>
+  </div>
+
+  <script src="./reactor.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

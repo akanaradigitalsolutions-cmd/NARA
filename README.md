@@ -387,6 +387,37 @@ python scripts/install_service.py --uninstall
 an unexpected error shows a short, friendly message (with the details in the log)
 instead of a scary traceback. Check the version any time with `nara --version`.
 
+## The interface — JARVIS-style HUD (`web/`)
+
+A holographic heads-up display: a living **Reactor Core** at the centre that
+breathes, listens, thinks and speaks, wrapped in glass panels, telemetry, and a
+transcript — all in the arc-reactor palette. It's plain HTML/CSS/Canvas (no build
+step), designed to sit as a thin layer over the same backend service, so it can
+later be wrapped in Tauri or the menu-bar app unchanged.
+
+Open it in your browser:
+
+```bash
+open web/index.html            # macOS — see it immediately
+```
+
+…or, with the service running (`nara serve` / the login LaunchAgent), visit
+**http://127.0.0.1:8765/ui**. The demo control bar (or number keys **1–8**) walks
+the core through all eight states; `#state=thinking` deep-links one.
+
+**UI build phases** (tokens → living core → reactivity → telemetry → polish):
+
+| UI Phase | Milestone | Status |
+|----------|-----------|--------|
+| 1 | Design tokens + glass shell (grid, vignette, panels) | ✅ |
+| 2 | Reactor Core + 8-state machine (breathing, rings, band, bloom) | ✅ |
+| 3 | Voice reactivity (Web Audio) + streaming transcript over websocket | ⬜ |
+| 4 | Telemetry HUD (live model/latency/cost/RAM) + staged boot sequence | ⬜ |
+| 5 | Sound cues, HUD alerts, command palette, accessibility pass | ⬜ |
+
+The core is GPU-light (`transform`/`opacity`, Canvas 2D), pauses when the window
+is hidden, and honours `prefers-reduced-motion`.
+
 ---
 
 ## Roadmap
